@@ -14,10 +14,18 @@
 #   bash tools/export_public.sh                 # 导出到 dist/public（默认，不含游戏素材）
 #   bash tools/export_public.sh /tmp/pub        # 指定目录
 #   bash tools/export_public.sh --with-assets   # 连同 manifest/payload 一起导出（⚠ 版权自负）
-#   bash tools/export_public.sh --force         # 目标目录已存在时先删掉再导出
+#   bash tools/export_public.sh --force         # 覆盖已有目录：清空内容但**保留 .git**（增量提交）
+#   bash tools/export_public.sh --fresh         # 彻底重置：连 .git 一起删，历史重建
 #
 # 导出后会：① 打印文件数与体积 ② 做一次「泄漏检查」（不该出现的路径出现就报错）
-#   ③ 在目标目录 `git init` + 首次提交（不配 remote，不推送）。
+#   ③ 把变化提交进目标目录的 git 仓库（不配 remote，不推送）。
+#
+# ★ 增量语义（2026-11-01）：`--force` 只清空文件、保留 `.git`，所以每次导出是一笔**正常提交**，
+#   历史连续、push 永远不需要 `--force`；内容没变化时不产生空提交。
+#   （文件仍是全量重写，但 git 按内容哈希判断，未变的文件不会进提交。）
+# ⚠ 目标目录是**产物**，主仓才是唯一真源：直接在目标目录里手改的东西会被下次导出覆盖。
+# ⚠ `--fresh` 之后历史归零；若远端已有内容，push 会被拒，只能用 `git push --force`。
+# 需要 git ≥ 2.28（用到 `git init -b`）。
 set -euo pipefail
 
 # ★ 中文/✓ 输出在「中文 Windows + Git Bash」的管道里会按 GBK 编码炸掉（build.sh 踩过同一个坑）。
@@ -31,10 +39,12 @@ cd "$ROOT"
 OUT="dist/public"
 WITH_ASSETS=0
 FORCE=0
+FRESH=0
 for a in "$@"; do
   case "$a" in
     --with-assets) WITH_ASSETS=1 ;;
     --force)       FORCE=1 ;;
+    --fresh)       FORCE=1; FRESH=1 ;;   # --fresh 隐含 --force
     -*)            echo "✗ 未知选项：$a" >&2; exit 2 ;;
     *)             OUT="$a" ;;
   esac
@@ -43,10 +53,18 @@ case "$OUT" in /*) ;; *) OUT="$ROOT/$OUT" ;; esac
 
 if [ -e "$OUT" ]; then
   if [ "$FORCE" = "1" ]; then
-    echo "· 目标已存在，按 --force 清空：$OUT"
-    "$ROOT/.venv/Scripts/python.exe" - "$OUT" <<'PY'
+    if [ "$FRESH" = "1" ]; then
+      KEEP_GIT=0
+      echo "· 目标已存在，按 --fresh 彻底重置（含 .git，历史将重建）：$OUT"
+    else
+      KEEP_GIT=1
+      echo "· 目标已存在，按 --force 清空内容（保留 .git，增量提交）：$OUT"
+    fi
+    "$ROOT/.venv/Scripts/python.exe" - "$OUT" "$KEEP_GIT" <<'PY'
 import shutil, sys, pathlib
 p = pathlib.Path(sys.argv[1])
+# ★ 保留 .git 是「增量提交」的全部关键：文件全量重写，但 git 历史接着往下长。
+keep_git = sys.argv[2] == "1"
 def _force_rm(x):
     # ★ Windows 上 git 会把 .git/objects 下的文件设成只读 ⇒ 直接 unlink 会 WinError 5。
     try:
@@ -59,6 +77,8 @@ def _force_rm(x):
         x.chmod(0o666); x.unlink()
 
 for c in sorted(p.iterdir(), reverse=True):
+    if keep_git and c.name == '.git':
+        continue
     if c.is_dir() and not c.is_symlink():
         shutil.rmtree(c, onerror=lambda f, path, exc: (_force_rm(pathlib.Path(path)) if pathlib.Path(path).is_file() else None))
     else:
@@ -146,16 +166,52 @@ print("· 目标已是 git 仓库（.git 存在），跳过 git init" if (out / 
       else "· 目标还没有 .git，稍后会 git init")
 PY
 
-# ── 初始化一个干净的 git 仓库（不配 remote、不推送）────────────────────────────
+# ── 把变化提交进目标目录的 git 仓库（不配 remote、不推送）──────────────────────
+# ★ 身份取本机 git 配置：写死 `phigros-auto <noreply@example.com>` 会让 GitHub 无法把提交
+#   关联到账户（显示成灰头像、点不动）。只有本机没配过才回退到占位身份。
+GIT_NAME="$(git config user.name 2>/dev/null || true)"
+GIT_EMAIL="$(git config user.email 2>/dev/null || true)"
+if [ -z "$GIT_NAME" ]; then GIT_NAME="phigros-auto"; fi
+if [ -z "$GIT_EMAIL" ]; then GIT_EMAIL="noreply@example.com"; fi
+
 if [ ! -d "$OUT/.git" ]; then
-  ( cd "$OUT" && git init -q && git add -A && git -c user.name=phigros-auto \
-      -c user.email=noreply@example.com commit -q -m "initial public export" ) || {
+  ( cd "$OUT" && git init -q -b master && git add -A && \
+    git -c user.name="$GIT_NAME" -c user.email="$GIT_EMAIL" commit -q -m "initial public export" ) || {
     echo "⚠ git init 失败（不影响文件导出）" >&2
   }
+  echo "· 已建仓库并完成首次提交（分支 master）"
+else
+  (
+    cd "$OUT"
+    git add -A
+    # ⛔ `git diff --cached --quiet` 有差异时返回 1。必须写在 if 条件位置 —— 直接
+    #   `git diff --cached --quiet; commit` 会在「刚 add 完、正要提交」处被 set -e 静默终止。
+    if git diff --cached --quiet; then
+      echo "· 内容无变化，跳过提交"
+    else
+      _n=$(git diff --cached --name-only | wc -l | tr -d ' ')
+      git -c user.name="$GIT_NAME" -c user.email="$GIT_EMAIL" commit -q \
+        -m "sync: $(date +%F) 更新 ${_n} 个文件"
+      echo "· 已提交 ${_n} 个变化文件（累计第 $(git rev-list --count HEAD) 笔）"
+    fi
+    # 兜底：目标目录里带着主仓的 .gitignore，可能静默吞掉本该提交的文件
+    _tracked=$(git ls-files | wc -l | tr -d ' ')
+    _onfs=$(find . -type f -not -path './.git/*' | wc -l | tr -d ' ')
+    if [ "$_tracked" != "$_onfs" ]; then
+      echo "⚠ 跟踪 $_tracked 个 / 磁盘 $_onfs 个（不一致，可能有文件被 .gitignore 吞掉）：" >&2
+      git status --short --untracked-files=all 2>/dev/null | grep '^??' | head -5 >&2 || true
+    fi
+  )
 fi
 
 echo
-echo "下一步（手动）："
+echo "下一步（手动，只需第一次）："
 echo "  1) 看一眼导出内容：  ls \"$OUT\""
 echo "  2) 建空仓库并推送：  cd \"$OUT\" && git remote add origin <你的仓库地址> && git push -u origin HEAD"
 echo "  3) 别人 clone 后按 README「你需要的素材」生成 assets，再 bash android/play/build.sh"
+echo
+echo "以后每次：改主仓 → 重跑本脚本 → cd \"$OUT\" && git push（历史连续，不需要 --force）"
+if [ "$FRESH" = "1" ]; then
+  echo
+  echo "⚠ 本次用了 --fresh：历史已重建。若远端已有内容，push 会被拒，只能用 git push --force 覆盖。" >&2
+fi
