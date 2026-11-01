@@ -1,0 +1,39 @@
+# 换行策略（core.autocrlf=true 在本机是开着的）
+#
+# ★ 兜底规则（2026-10-25 19:5x 补）：**先**给所有文本文件定成 LF，后面再用具体规则覆盖。
+#   为什么需要它：此前只有 memory/plans/out 的 md、csv、sh、bat 有规则，`.java/.json/.xml/.py`
+#   全靠 core.autocrlf 的默认行为 ⇒ 本机工作区被转成 CRLF（29 个文件 w/crlf，索引却是 LF），
+#   换一台 autocrlf=false 的机器又会全变 LF。规则写死才不用"每次现推仓库到底是哪种"。
+#   ★ 顺序很重要：git 是**最后匹配者胜**，所以 `*.bat text eol=crlf` 必须写在后面。
+# ⚠ 判 EOL 只认 `git ls-files --eol` 或 Python 数 `b"\r\n"`：
+#   2026-10-25 我用 `grep -c $'\r'` 在 Git Bash 里量出"每行一个 CR"，据此误判"库里全是 CRLF"，
+#   而同一批文件用 Python 读 CRLF=0、索引里 i/crlf 也是 0 ⇒ **那次判据整个是假象**。
+* text=auto eol=lf
+#
+# ★ 记忆文件**必须** LF：`.workbuddy/memory/MEMORY.md` 有 16384 B 硬上限，
+#   超过就被静默截断。CRLF 每行多 1 B，这个文件 ~200 行 ⇒ 下次 checkout 会
+#   凭空多出 ~200 B 直接超限，而且**不会报错**（10-24 已经踩过一次：161 处 CRLF
+#   ⇒ 16684 B）。同理每日日志也对 diff 友好。
+.workbuddy/memory/*.md text eol=lf
+.workbuddy/memory/**/*.md text eol=lf
+# 方案与报告也用 LF：它们会被摘进 memory（硬上限 16384 B），且 CRLF 会让 diff 噪声翻倍
+.workbuddy/plans/*.md text eol=lf
+out/*.md text eol=lf
+
+# 对账/追踪的 CSV 也必须 LF：读端若用 split("\n")，行尾的 \r 会污染最后一个字段
+# （`ptrs` 里的 `id:x:y` 会变成 `id:x:y\r`）。tools/compare_touch.py 用 splitlines()
+# 本来就不受影响，但数据文件本身没有理由被转换。
+*.csv text eol=lf
+
+# 本文件自身也用 LF（否则 git 会拿它去转自己，形成"改一次转一次"的抖动）
+.gitattributes text eol=lf
+
+# .bat 必须 CRLF：cmd.exe 对 LF-only 的批处理在某些 label/goto 组合上会读错行
+*.bat text eol=crlf
+
+# .sh 必须 LF：`#!/usr/bin/env bash\r` 直接执行时找不到解释器（bad interpreter）；
+# 用 `bash script.sh` 跑时 \r 会被当成行内容（`rm -rf "$X"\r` 这类会留下脏参数）。
+# ★ 2026-10-24 发现此前 attr 为空 ⇒ `core.autocrlf=true` 已把 3 个 .sh 转成 CRLF
+#   （injector/build.sh、injector/verify_apk.sh、tools/inject_sched/verify.sh）。
+#   它们目前"还能跑"只是 Git Bash 容忍，换个环境（WSL / Linux CI）就会炸。
+*.sh text eol=lf

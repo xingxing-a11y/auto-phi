@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  端内自动演奏 app（io.pgauto.play）= M1 的「本体」。
+
+  ★ 与 probe / injector 的关系：**源码不复制，三棵树同编**（见
+    .workbuddy/plans/2026-10-23-m1-onddevice-play.md §3.1）。
+    本 manifest 里跨包的组件（如 S1-c 的 io.pgauto.probe.RecorderService）
+    必须写**全限定名** —— 以 `.` 开头的简写会被解析成 io.pgauto.play.<name>，
+    编译期不报错、运行期 ActivityNotFound/ServiceNotFound。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="io.pgauto.play">
+
+    <!-- ── 音频捕获（S1-c 起用；AudioPlaybackCapture 的捕获方必须持有它）── -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Android 14+ 起 MediaProjection 录制必须走前台服务，且类型必须是 mediaProjection -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- 注入期间游戏在前台，只有 FGS 能保证进程不被 HONOR 省电策略冻结。
+         注入不属于 media/location/dataSync，Android 14 要求用 specialUse。 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 一轮注入 150~160 s，中途屏幕变暗会拖慢注入（降频）。PARTIAL_WAKE_LOCK 只保 CPU，
+         不保屏幕 —— 屏幕由游戏自己 keep-screen-on。超时 400 s 自动释放，防手滑常驻。 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 媒体音量 0 时 AudioPlaybackCapture 录到**也是 0**（10-19 实测，整轮峰值 0 且不报错）
+         ⇒ 需要临时提音量。normal 级，无需运行时授权。 -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Shizuku 的 API 权限：声明它只是让 Shizuku 端知道本 app 会来申请，
+         真正授权仍要运行时 requestPermission() + 手机端确认。 -->
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+
+    <!-- ★ android:icon 早先是缺失的（2026-10-26 查证：本文件无该属性、工程无 res/、
+         aapt2 只带 -A ⇒ 解包 1064 条目 res/ 与 icon 均为 0），桌面挂的一直是系统默认图标。
+         现在指向 @mipmap/ic_launcher：API 26+ 走 mipmap-anydpi-v26 的自适应两层，
+         老桌面走 mipmap-*dpi 的位图。图形 = φ（1,000,000 全 Perfect）的竖笔落到判定线上，
+         配色复用 MainActivity 的 BG / ACCENT / OK 常量。
+         ⛔ 别只删 res/ 里的 PNG 而留 manifest 这行 —— aapt2 会直接 link 失败；
+            要么两边都在，要么两边都删。 -->
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="PG 自动演奏"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <!-- ★ NoActionBar：界面是自绘的深色头部，留着 ActionBar 会在上面压一条
+             浅色标题栏（老版用的是 Theme.Material.Light.DarkActionBar，深色内容 +
+             白标题栏的割裂感就是这么来的）。 -->
+
+        <!-- ★ 必须有：provider aar 的 manifest 里**没有**这条，客户端要自己声明。
+             Shizuku 服务端通过广播 moe.shizuku.api.action.BINDER_RECEIVED 把 binder 递过来，
+             这个 ContentProvider 负责接收并转交给 rikka.shizuku.Shizuku.onBinderReceived()。
+             authority 必须是 "<package>.shizuku"（ShizukuProvider 内部依赖这个后缀）。
+             ⛔ 删掉它 = Shizuku.pingBinder() 永远 false，且没有任何报错。
+             现在（S1-b）就声明：S1-c 要注入时需要它，而 authority 一旦写错
+             是「装完能起来、一注入就静默失败」的形态，越早固定越好。 -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="io.pgauto.play.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <meta-data
+            android:name="moe.shizuku.client.V3_SUPPORT"
+            android:value="true" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 收货端对账靶子（S1-e）：把真实载荷重放给自己，双侧逐帧落盘。
+             ★ screenOrientation 固定 landscape（不是 sensorLandscape）：
+               注入坐标是"当前显示方向"的绝对坐标，方向一旦随摆放翻转，
+               事件原点就换了 —— 用固定方向让实验可复现。
+             ★ theme 覆盖成全屏无标题栏：让窗口尽量铺满屏幕。
+               ⚠ 实测本机横屏窗口仍是 1536x720（屏幕 1610x720），差的 74 px 是
+                 挖孔/系统栏占用的那条边 —— 所以代码**不要求**窗口等于屏幕，
+                 而是按窗口尺寸生成坐标、再补窗口在屏幕上的偏移。
+                 硬要按屏幕尺寸生成，那 74 px 里的事件会落在窗口外被吃掉，
+                 然后被误算成「派发丢帧」（= 与事实相反的结论）。 -->
+        <activity
+            android:name=".TouchProbeActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <!-- S1-c 的驱动层：注入期间游戏在前台，本 App 的 Activity 必然 onStop ⇒
+             只有前台服务能保证 160 s 不被 HONOR 的省电策略冻结。
+
+             ★ foregroundServiceType 必须与 startForeground(...) 传的 type 一致：
+               Android 14 上不一致直接抛 SecurityException（服务起不来、看不出原因）。
+             ★ type=specialUse 是"自动化/输入注入"这类没有专门分类的场景，
+               并且必须配 androidx 之外的这条 <property> 说明用途，否则 Play 审核会拒
+               （本工程直接 adb 安装，但协议照写，免得以后补）。
+             ★ type 里还有 mediaProjection（S1-d 加的）：端内 onset 零点要用
+               AudioPlaybackCapture，而 Android 14 要求 **getMediaProjection 之前**
+               FGS 已经带着这个类型在跑，否则抛 SecurityException。
+               两个类型并存是允许的，但 startForeground(...) 传的位必须都声明在这 ——
+               只传不声明、或只声明不传，A14 上都起不来。
+             ★ exported=false：只有本 App 自己（Activity）能启动它。 -->
+        <service
+            android:name=".PlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|mediaProjection">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Scheduled touch injection into a rhythm game during a single user-initiated run" />
+        </service>
+    </application>
+</manifest>

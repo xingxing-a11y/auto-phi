@@ -1,0 +1,4 @@
+// 探针工程根构建脚本。只引 AGP，不引 Kotlin（纯 Java ⇒ 少下 ~100 MB 且编译更快）。
+plugins {
+    id 'com.android.application' version '8.5.2' apply false
+}

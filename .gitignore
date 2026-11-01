@@ -1,0 +1,138 @@
+# ============================================================
+# phigros-auto .gitignore
+# 原则：只入库「源码 / 脚本 / 文档 / 小体积状态」，
+#       一切大体积媒体与可重生成的临时产物都不入库。
+# ============================================================
+
+# ---------- 环境与缓存 ----------
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.cache/
+.pytest_cache/
+.idea/
+.vscode/
+
+# ---------- 大体积媒体（录像 / 音频 / 解包资源）----------
+*.mp4
+*.mkv
+*.avi
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.apk
+out/charts/
+
+# 变体跑分时的音符表副本 —— 恒等于 out/notes_<谱>.json 的纯拷贝（变体只改事件、不改谱面），
+# 可用 `tmp/make_tailfix.py --notes` 重生成 ⇒ 不值得入库（9 MB 级重复）。
+out/notes_*_tailfix.json
+
+# ---------- tmp 临时产物（截图 / 帧目录 / 大 scratch，均可重生成）----------
+tmp/_dbg/
+tmp/calframes/
+tmp/miss_hunt_m5/
+tmp/miss_seq/
+tmp/notes/
+tmp/prog/
+tmp/sc/
+tmp/tf/
+tmp/tops/
+tmp/**/*.png
+tmp/*.npy
+tmp/n.json
+tmp/n2.json
+tmp/n3.json
+
+# 一次性探针的下划线临时产物（dumpsys 快照 / 中间 json / scrcpy 日志，均可重生成）
+tmp/_*
+# tb_measure / tb_hit1 的产物：其锚点判据已被 §17.13 证伪，不入库
+#   tb_measure 的 V_transition 窗口（[1.0, 8.0]，为 s1b 定标）在 70MF 上抓到的是
+#     选歌界面 UI 动画 ⇒ 三轮 D 完全相同（−4.3263/−4.3264）= 伪迹；
+#   tb_hit1 的「判定粒子骤降」由我们自己的注入触发 ⇒ 循环论证。
+# 取而代之的是 tmp/tb_vscore.py（画面锚，几何量与注入无关）。
+tmp/measure_*.json
+tmp/hit1_*.json
+
+# 探针/双链真机录制（每轮 20~53 MB wav，可重录）
+tmp/rec_*/
+
+# ---------- 系统杂项 ----------
+Thumbs.db
+desktop.ini
+*.bak
+*.bak-*
+
+# ---------- 运行期状态（每轮都变，不跟版本）----------
+tmp/inject_server.log
+# 闭环的「下一轮 G」状态，逐轮演进；历史已记入 .workbuddy/memory/
+pgauto/g_state.json
+# L4c 的标定常量（slop = sil_ref + B）与收敛历史；默认值写在 tmp/audio_round.py 里
+tmp/audio_calib.json
+# l5 常驻流（tmp/pas.py）的运行期状态 / 启动脚本 / 日志 / 独立标定池；
+#   默认值（ANCHOR_LAG_DEFAULT）写在 tmp/audio_round.py 里，逐轮演进的 L 不入库
+tmp/pas_state.json
+tmp/pas_calib.json
+tmp/pas_stream.bat
+tmp/pas_stream.log
+
+# 视觉钟实验（甲格）的逐帧抽取产物：可重生成（tmp/probe_visual_clock.py extract）
+tmp/vc_*.npz
+
+# ---------- Android 构建（10-17 建链）----------
+# 中间产物：build.sh 一条命令可重建，不入库
+android/**/build/
+android/**/*.idsig
+# 机器相关：SDK 路径写死在 local.properties，各机器不同
+android/**/local.properties
+# 签名材料（即使只是 debug 密钥也不入库）
+android/**/*.keystore
+android/**/*.jks
+
+# ---------- 逐曲中间产物：**不进库**（可由 tmp/play.py / tmp/m3_batch.py 重生成）----------
+# 为什么要专门写：M3 之后 out/ 下有 900+ 个 touches_*.json（1.1 GB）与 900+ 个 notes_*.json，
+# 每个 git status 都把它们列成未跟踪 ⇒ 噪声淹没真正的改动。
+# ⛔ 它们不是产物，是**中间件**：真正的产物是 android/play/app/src/main/assets/ 下的
+#    payload/*.json + manifest.json（已入库、压缩后 ~10 MB 级），端内只读那份。
+out/touches_*.json
+out/notes_*.json
+
+# ---------- 设备侧录屏（留档但不入库）----------
+# 来源：`adb pull /sdcard/Android/data/io.pgauto.play/files/tail.h264 out/…`。
+# 2026-10-25 那份是 **71,879,214 B**（原始 h264 流，`--output-format=h264` 的产物）。
+# ⛔ 不进 git：单文件 70 MB 级，而它只是诊断素材（分析结论在中段的 md 报告里）。
+out/*.h264
+out/*.mp4
+
+# ---------- 设备侧注入 trace（保留原名，只留磁盘）----------
+# 用户 2026-10-25 定的口径：「拉，保留原名，只留磁盘」⇒ 不重命名、不入库。
+# 一次 15 个 / 3.1 MB（`inject_trace.csv` + `inject_trace_<HHmmss>.csv`）。
+# ⚠ 与 `out/run_*_trace_<日期>.csv` 不同：那些是**人工挑出来**的关键轮次，已入库；
+#   这些是设备上的全量流水，占空间且结论已写进 md 报告。
+out/inject_trace*.csv
+
+# ---------- 构建产物：assets 里的构建指纹（G13）----------
+# `build.sh` 每次构建都会重写它（内容含 rev/dirty/时间戳），所以**不能入库**：
+# 入库的话每构建一次工作树就脏一次，`build.sh` 的 dirty 标记也跟着永远为真。
+android/play/app/src/main/assets/build_info.txt
+
+# ---------- tmp 里的临时抓取（截图 / 轨迹 / 日志 / 临时 csv）----------
+tmp/*.png
+tmp/*.csv
+tmp/*.log
+tmp/_*
+tmp/m3_batch_report.md
+
+# ---------- tmp 里「只留磁盘、不入库」的三类（2026-10-30 补）----------
+# 判据只有一条：**同类文件在库里的份数 = 0** 才整类忽略。
+# ⛔ 别把 dmeas_/lag_/timeline_/vanchor_/clamp_ 这些逐轮产物加进来 ——
+#    它们 r1~r4 都在库（330 个），单把 r5 忽略 = 造「这一轮失踪」的坑。
+# ① 设备侧 K 侧车 `k_<曲>_<HHmmss>.txt`：pull 回来看一眼，结论进 FACTS / 按日日志。
+tmp/k_*.txt
+# ② dumpsys / uiautomator 抓帧（dev_ui.xml / dev__ui2.xml 等）：界面结构快照，重抓即得。
+tmp/dev*.xml
+# ③ 一次性探针源码（EnvLocateCheck 之类）：跑完即弃，结论在 md 报告里。
+tmp/*.java
+
+dist/

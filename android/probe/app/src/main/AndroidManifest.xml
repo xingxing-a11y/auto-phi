@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="io.pgauto.probe">
+
+    <!-- 捕获方需要的权限（被捕获方 Phigros 不需要任何额外权限） -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Android 14+ 起 MediaProjection 录制必须走前台服务，且类型必须是 mediaProjection -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- ★ 标定脉冲需要临时把媒体音量提起来：2026-10-19 实测媒体音量 0 时
+         AudioPlaybackCapture 录到的**也是 0**（整轮 wav 峰值 = 0），而播放本身
+         不报任何错 ⇒ 不解决就会「看起来跑成功了、数据全废」。normal 级权限，无需运行时授权。 -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <application
+        android:allowBackup="false"
+        android:label="PG 音频探针"
+        android:theme="@android:style/Theme.Material.Light.DarkActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ★ foregroundServiceType 必须写 mediaProjection：
+             否则 Android 14+ 会在 startForeground() 抛 SecurityException -->
+        <service
+            android:name=".RecorderService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+    </application>
+</manifest>

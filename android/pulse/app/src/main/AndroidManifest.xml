@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="io.pgauto.pulse">
+
+    <!-- ★ 必须与录制探针 io.pgauto.probe 是**不同包名**：Android 的 playback capture
+         按 uid 分流，同一个 uid 的播放会被路由到 SPEAKER、不进 REMOTE_SUBMIX
+         ⇒ 自己录自己恒为 0（FACTS §89 三轮实测）。本 app 存在的唯一理由就是换个 uid。 -->
+
+    <!-- 临时提高媒体音量用（normal 级，无需运行时授权）：
+         媒体音量 0 时 AudioPlaybackCapture 抓到的也是 0，且播放不报错。 -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <application
+        android:allowBackup="false"
+        android:label="PG 标定脉冲"
+        android:theme="@android:style/Theme.Material.Light.DarkActionBar">
+
+        <!-- exported=true + LAUNCHER：让 adb 能 `am start -n io.pgauto.pulse/.MainActivity`
+             一条命令触发播放，无需人点按钮 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 8.0+ 的自适应图标：系统把前景层与背景层分别缩放 108dp，
+  再由启动器用自家遮罩（圆形 / 圆角方 / 方圆）裁切 —— 所以图形必须全部落在
+  66dp 安全圆内，否则圆形遮罩下会切边。本图的校验见 tools/check_play_apk.py 第 ⑨ 组。
+
+  ⛔ 前景层必须**只有图形、透明底**：把背景烘进前景会让两层一起被裁，
+     并且启动器的视差（前景微移）会露出生硬的色块边缘。
+  ⛔ 别删 mipmap-{m,h,x,xx,xxx}dpi/ic_launcher.png：那是给老启动器
+     / 第三方桌面读取的位图版本，没有它们某些桌面会显示空白图标。
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

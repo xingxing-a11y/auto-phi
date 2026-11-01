@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="io.pgauto.inject">
+
+    <!-- Shizuku 的 API 权限。声明它是让 Shizuku 端知道本 app 会来申请；
+         真正授权仍要运行时 requestPermission() + 手机端确认。 -->
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+
+    <!-- 端内「脑」是前台服务：注入期间 Activity 必然 onStop，只有 FGS 能保证
+         160 秒不被系统限频/冻结。specialUse 是 Android 14 对「不属于任何既有
+         类别」的服务的正确类型（注入不是 media/location/dataSync 中的任何一种）。 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="false"
+        android:label="PG 注入器"
+        android:theme="@android:style/Theme.Material.Light.DarkActionBar">
+
+        <!-- ★ 必须有：provider aar 的 manifest 里**没有**这条，客户端要自己声明。
+             Shizuku 服务端通过广播 moe.shizuku.api.action.BINDER_RECEIVED 把 binder 递过来，
+             这个 ContentProvider 负责接收并转交给 rikka.shizuku.Shizuku.onBinderReceived()。
+             authority 必须是 "<package>.shizuku"（ShizukuProvider 内部逻辑依赖这个后缀）。
+             ⛔ 删掉它 = Shizuku.pingBinder() 永远 false，且没有任何报错。 -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="io.pgauto.inject.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <!-- 同样来自 provider aar 的 manifest，声明支持 V3 协议 -->
+        <meta-data
+            android:name="moe.shizuku.client.V3_SUPPORT"
+            android:value="true" />
+
+        <service
+            android:name=".InjectService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="inject_input_events_for_rhythm_game_autoplay" />
+        </service>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
