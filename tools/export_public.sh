@@ -133,8 +133,21 @@ with_assets = sys.argv[2] == "1"
 # 本仓库目前只出现机型名（公开信息），但导出是给外人看的最后一道闸。
 import re as _re
 TEXT_EXT = {'.py', '.java', '.sh', '.bat', '.md', '.txt', '.xml', '.json', '.gradle', '.properties'}
-for _p in out.rglob('*'):
-    if _p.is_file() and _p.suffix.lower() in TEXT_EXT:
+
+
+def _iter_files():
+    # ★ 必须排除 `.git/`：`--force` 现在保留 .git，而 rglob('*') 会一路扫进 objects/
+    #   ⇒ 统计出「534 文件 / 5.44 MB」这种假数字，泄漏检查也跟着扫无用文件。
+    for _p in out.rglob('*'):
+        if not _p.is_file():
+            continue
+        if '.git' in _p.relative_to(out).parts:
+            continue
+        yield _p
+
+
+for _p in _iter_files():
+    if _p.suffix.lower() in TEXT_EXT:
         try:
             _t = _p.read_text(encoding='utf-8', errors='surrogateescape')
             _n = _re.sub(r'\bAK3' + 'SBB[0-9A-Z]{10}\b', 'DEVICE_SERIAL', _t)
@@ -142,7 +155,7 @@ for _p in out.rglob('*'):
                 _p.write_text(_n, encoding='utf-8', errors='surrogateescape')
         except Exception:
             pass
-files = [p for p in out.rglob('*') if p.is_file()]
+files = list(_iter_files())
 total = sum(p.stat().st_size for p in files)
 print(f"· 文件数 {len(files)} ｜体积 {total/1048576:.2f} MB")
 
