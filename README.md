@@ -58,24 +58,80 @@
 - 一台电脑，只在前面几步用：Python 3.11+、JDK 17、Android SDK（build-tools 34.0.0 + platforms;android-34）；
 - 手机上装 Shizuku（建议 13.6.0 及以上）：<https://github.com/RikkaApps/Shizuku/releases>
 
+三个电脑端依赖都要自己装，仓库里不带。版本不是建议，而是硬要求 —— `build.sh` 里写死了
+`build-tools/34.0.0` 与 `platforms/android-34`：
+
+| 依赖 | 版本 | 从哪来 |
+|---|---|---|
+| Git for Windows | 任意 | <https://git-scm.com/download/win>（下面所有命令都在 Git Bash 里执行） |
+| Python | 3.11+ | <https://www.python.org/downloads/>（安装时勾上 "Add python.exe to PATH"） |
+| JDK | 17 | <https://adoptium.net/temurin/releases/?version=17>（下 `.msi`，装完 `javac -version` 打印 17 即可） |
+| Android SDK | build-tools 34.0.0 + platforms;android-34 | 见下面四步 |
+
+Android SDK 没有安装程序，解压到哪、哪就是它的位置。只构建不写 Android 代码时不必装 Android Studio：
+
+1. 打开 <https://developer.android.com/studio>，在「仅限命令行工具」表里下载 Windows 那一行
+   （`commandlinetools-win-*_latest.zip`，约 156 MB）；
+2. 解压成 `D:/android-sdk/cmdline-tools/latest/`，最终必须存在
+   `D:/android-sdk/cmdline-tools/latest/bin/sdkmanager.bat`。少这一层 `latest` 会报
+   `Could not determine SDK root`；
+3. 装三个包并同意许可（cmd.exe，`JAVA_HOME` 换成你的 JDK 17 目录）：
+
+   ```bat
+   set SDK=D:\android-sdk
+   set JAVA_HOME=C:\path\to\jdk-17
+   "%SDK%\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=%SDK% "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+   echo y| "%SDK%\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=%SDK% --licenses
+   ```
+
+4. 验收：`%SDK%\platforms\android-34\android.jar` 与 `%SDK%\build-tools\34.0.0\aapt2.exe` 都存在。
+
+已经装了 Android Studio 的，在 Settings → Languages & Frameworks → Android SDK 里勾上
+「Android 14 (API 34)」和 build-tools 34.0.0，再把「Android SDK Location」那一栏的值当成
+`ANDROID_SDK` 用。
+
 > ⚠ **电脑这边目前只支持 Windows**。`android/play/build.sh` 调的是 `aapt2.exe` / `d8.bat` / `javac.exe`，
 > 默认路径也是 `D:/...` 风格，只在 Windows + Git Bash 下验证过。Linux / macOS 要自己改写这个脚本
 > （把 `.exe` / `.bat` 去掉、路径换成对应的 SDK 布局）。下面的命令都在项目根目录执行。
+
+> ⚠ **下面的命令都是 Git Bash 写法**。抄进 cmd.exe 会把 `.venv/Scripts/python.exe` 读成「执行 `.venv`」，
+> 报「不是内部或外部命令」——cmd 只认反斜杠，`export` 在它那里也不存在。每段都给了两种写法，
+> 照你用的 shell 抄。
 
 装好 Python 后先建虚拟环境、装依赖 —— 不装的话 `tools/extract_chart.py` 会直接
 `ModuleNotFoundError: No module named 'UnityPy'`：
 
 ```bash
+# Git Bash
 python -m venv .venv
 .venv/Scripts/python.exe -m pip install -r requirements.txt
 ```
 
-JDK / SDK / adb 不在默认位置时，用环境变量告诉构建脚本（不设就用脚本里的默认值，多半对不上你的机器）：
+```bat
+:: cmd.exe
+py -3 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+`python` 在 Windows 上可能是微软商店的占位程序：敲下去没有任何输出，也不会真的建环境
+（现象是命令「成功」返回，`.venv` 却没出现）。先用 `py -3 -V` 确认能打印版本号，
+打印不出来就是真 Python 没装、或没加进 PATH。
+
+JDK / SDK / adb 不在默认位置时，用环境变量告诉构建脚本。这三行是模板（`你的用户名` 是占位符），
+`ANDROID_SDK` 指向 SDK 根目录（`platforms` 的上一级），不是 `platforms` 本身：
 
 ```bash
+# Git Bash
 export JDK_HOME="C:/Program Files/Java/jdk-17"
 export ANDROID_SDK="C:/Users/你的用户名/AppData/Local/Android/Sdk"
 export ADB="C:/platform-tools/adb.exe"
+```
+
+```bat
+:: cmd.exe
+set JDK_HOME=C:\Program Files\Java\jdk-17
+set ANDROID_SDK=C:\Users\你的用户名\AppData\Local\Android\Sdk
+set ADB=C:\platform-tools\adb.exe
 ```
 
 #### 2. 起 Shizuku
