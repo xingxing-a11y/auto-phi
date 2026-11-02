@@ -182,8 +182,19 @@ PY
 # ── 把变化提交进目标目录的 git 仓库（不配 remote、不推送）──────────────────────
 # ★ 身份取本机 git 配置：写死 `phigros-auto <noreply@example.com>` 会让 GitHub 无法把提交
 #   关联到账户（显示成灰头像、点不动）。只有本机没配过才回退到占位身份。
-GIT_NAME="$(git config user.name 2>/dev/null || true)"
-GIT_EMAIL="$(git config user.email 2>/dev/null || true)"
+# ★ 身份**优先读目标仓库自己的配置**。脚本开头 `cd "$ROOT"` 了，直接 `git config` 读到的是
+#   主仓身份（本地开发用的真实邮箱）⇒ 推 GitHub 会被 GH007 拒（私密邮箱保护），
+#   哪怕目标仓库里已经配好了 noreply 地址也没用。所以先 `git -C "$OUT" config`。
+#   ⚠ 不能用裸 `git -C "$OUT" config`：目标目录在父仓库之内且自身还不是仓库时，
+#   它会向上找到**父仓库**并返回主仓身份 —— 所以先判 `$OUT/.git` 是否存在。
+GIT_NAME=""
+GIT_EMAIL=""
+if [ -d "$OUT/.git" ]; then
+  GIT_NAME="$(git -C "$OUT" config user.name 2>/dev/null || true)"
+  GIT_EMAIL="$(git -C "$OUT" config user.email 2>/dev/null || true)"
+fi
+if [ -z "$GIT_NAME" ]; then GIT_NAME="$(git config user.name 2>/dev/null || true)"; fi
+if [ -z "$GIT_EMAIL" ]; then GIT_EMAIL="$(git config user.email 2>/dev/null || true)"; fi
 if [ -z "$GIT_NAME" ]; then GIT_NAME="phigros-auto"; fi
 if [ -z "$GIT_EMAIL" ]; then GIT_EMAIL="noreply@example.com"; fi
 
