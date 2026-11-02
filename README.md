@@ -73,21 +73,23 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘
 
 1. 打开 <https://developer.android.com/studio>，在「仅限命令行工具」表里下载 Windows 那一行
    （`commandlinetools-win-*_latest.zip`，约 156 MB）；
-2. 解压成 `<SDK 目录>/cmdline-tools/latest/`（本文后面拿 `D:/android-sdk` 当例子），最终必须存在
-   `<SDK 目录>/cmdline-tools/latest/bin/sdkmanager.bat`。少这一层 `latest` 会报
-   `Could not determine SDK root`；
-3. 装三个包并同意许可。这一步只要求当前窗口能找到 JDK 17 —— 给 `JAVA_HOME` 赋值可以，
-   让 `java` 待在 PATH 里也可以；两种都只在当前窗口有效，不必改成系统环境变量：
+2. 解压成 `<SDK 目录>/cmdline-tools/latest/`（本文后面拿 `D:/android-sdk` 当例子）。少这一层
+   `latest`，下一步会报 `Could not determine SDK root`；
+3. 装三个包 + 同意许可。只需要改前两行的两个路径，其余照抄：
 
    ```bash
-   # 换成你自己的两个目录；这两行只对这个窗口生效
-   export SDK="D:/android-sdk"
-   export JAVA_HOME="C:/path/to/jdk-17"
-   "$SDK/cmdline-tools/latest/bin/sdkmanager.bat" --sdk_root="$SDK" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-   yes | "$SDK/cmdline-tools/latest/bin/sdkmanager.bat" --sdk_root="$SDK" --licenses
+   SDK="D:/android-sdk"                  # 换成你解压 SDK 的目录
+   export JAVA_HOME="C:/path/to/jdk-17"  # 换成你的 JDK 17 目录
+
+   cd "$SDK/cmdline-tools/latest/bin"
+   ./sdkmanager.bat "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+   ./sdkmanager.bat --licenses           # 会连问几次许可，全部输入 y 回车
    ```
 
 4. 验收：`$SDK/platforms/android-34/android.jar` 与 `$SDK/build-tools/34.0.0/aapt2.exe` 都存在。
+
+命令里没有 `--sdk_root`：`sdkmanager` 会从自己所在的 `cmdline-tools/latest/bin` 往上推出 SDK 目录，
+所以只有开头那两个路径要改。
 
 这里有两个名字很像、但归不同程序管的变量：`sdkmanager` 认 `JAVA_HOME`，本项目的 `build.sh` 只认
 `JDK_HOME`（它完全不看 `JAVA_HOME`）。构建时把 `JDK_HOME` 指向同一个 JDK 17 目录即可，同样不需要
