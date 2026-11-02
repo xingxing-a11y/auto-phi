@@ -53,6 +53,8 @@
 
 #### 1. 你需要什么
 
+下面所有命令都在项目根目录、用 Git Bash 执行（资源管理器里右键项目文件夹 → Open Git Bash here）。
+
 - 一台未 root 的 Android 手机（minSdk 29，即 Android 10 及以上；实测 Android 14）+ 已安装《Phigros》
   （本项目按 4.0.1 的谱面与音频验证）；
 - 一台电脑，只在前面几步用：Python 3.11+、JDK 17、Android SDK（build-tools 34.0.0 + platforms;android-34）；
@@ -75,7 +77,7 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘
    （`commandlinetools-win-*_latest.zip`，约 156 MB）；
 2. 解压成 `<SDK 目录>/cmdline-tools/latest/`（本文后面拿 `D:/android-sdk` 当例子）。少这一层
    `latest`，下一步会报 `Could not determine SDK root`；
-3. 装三个包 + 同意许可。只需要改前两行的两个路径，其余照抄：
+3. 装三个包 + 同意许可。在哪跑都行（命令里会 cd 进 SDK 目录），只需要改前两行的两个路径，其余照抄：
 
    ```bash
    SDK="D:/android-sdk"                  # 换成你解压 SDK 的目录
@@ -98,8 +100,7 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘
 
 > ⚠ **电脑这边目前只支持 Windows**。`android/play/build.sh` 调的是 `aapt2.exe` / `d8.bat` / `javac.exe`，
 > 默认路径也是 `D:/...` 风格，只在 Windows + Git Bash 下验证过。Linux / macOS 要自己改写这个脚本
-> （把 `.exe` / `.bat` 去掉、路径换成对应的 SDK 布局）。下面的命令都在项目根目录、用 Git Bash 执行
-> （资源管理器里右键项目文件夹 → Open Git Bash here）。
+> （把 `.exe` / `.bat` 去掉、路径换成对应的 SDK 布局）。
 
 装好 Python 后先建虚拟环境、装依赖 —— 不装的话 `tools/extract_chart.py` 会直接
 `ModuleNotFoundError: No module named 'UnityPy'`：
