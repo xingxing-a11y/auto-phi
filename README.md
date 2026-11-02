@@ -68,17 +68,19 @@
 | JDK | 17 | <https://adoptium.net/temurin/releases/?version=17>（下 `.msi`，装完 `javac -version` 打印 17 即可） |
 | Android SDK | build-tools 34.0.0 + platforms;android-34 | 见下面四步 |
 
-Android SDK 没有安装程序，解压到哪、哪就是它的位置。只构建不写 Android 代码时不必装 Android Studio：
+Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘符和目录名都可以自己挑，只要让 `ANDROID_SDK`
+指到它就行。只构建不写 Android 代码时不必装 Android Studio：
 
 1. 打开 <https://developer.android.com/studio>，在「仅限命令行工具」表里下载 Windows 那一行
    （`commandlinetools-win-*_latest.zip`，约 156 MB）；
-2. 解压成 `D:/android-sdk/cmdline-tools/latest/`，最终必须存在
-   `D:/android-sdk/cmdline-tools/latest/bin/sdkmanager.bat`。少这一层 `latest` 会报
+2. 解压成 `<SDK 目录>/cmdline-tools/latest/`（本文后面拿 `D:/android-sdk` 当例子），最终必须存在
+   `<SDK 目录>/cmdline-tools/latest/bin/sdkmanager.bat`。少这一层 `latest` 会报
    `Could not determine SDK root`；
-3. 装三个包并同意许可（cmd.exe，`JAVA_HOME` 换成你的 JDK 17 目录）：
+3. 装三个包并同意许可。这一步只要求当前窗口能找到 JDK 17 —— 给 `JAVA_HOME` 赋值可以，
+   让 `java` 待在 PATH 里也可以；两种都只在当前窗口有效，不必改成系统环境变量：
 
    ```bat
-   :: 前两行都换成你自己的路径（SDK 根目录 / JDK 17 目录）
+   :: 换成你自己的两个目录；这两行只对这个窗口生效
    set SDK=D:\android-sdk
    set JAVA_HOME=C:\path\to\jdk-17
    "%SDK%\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=%SDK% "platform-tools" "platforms;android-34" "build-tools;34.0.0"
@@ -86,6 +88,10 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置。只构�
    ```
 
 4. 验收：`%SDK%\platforms\android-34\android.jar` 与 `%SDK%\build-tools\34.0.0\aapt2.exe` 都存在。
+
+这里有两个名字很像、但归不同程序管的变量：`sdkmanager` 认 `JAVA_HOME`，本项目的 `build.sh` 只认
+`JDK_HOME`（它完全不看 `JAVA_HOME`）。构建时把 `JDK_HOME` 指向同一个 JDK 17 目录即可，同样不需要
+写成系统环境变量 —— 只在这个终端窗口里 set 一下。系统里已经配好的话就什么都不用做。
 
 已经装了 Android Studio 的，在 Settings → Languages & Frameworks → Android SDK 里勾上
 「Android 14 (API 34)」和 build-tools 34.0.0，再把「Android SDK Location」那一栏的值当成
