@@ -35,7 +35,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tmp"))
@@ -1119,6 +1119,66 @@ SONGS: tuple[str, ...] = (
     "xfyj",
 )
 
+#: 打包时**排除**的 key：磁盘上有载荷，但不该进包的开发期残留。
+#:
+#: ★ 这张表是「白名单 → 基准 + 自动收录」改造的配套闸门（2026-11-02）：
+#:   `SONGS` 之外、磁盘上又存在的 key 现在会被**自动收录**（游戏更新出新歌就靠这条），
+#:   但作者机器上还留着一批实验产物，靠本表挡住，否则它们会被一并打进包。
+#:
+#: 33 条逐条核实过（读 payload 的 `song` + `chart`，与 `SONGS` 里的条目比对 `(song, diff)`）：
+#:   · 别名 26 条 —— 与 `SONGS` 里某条同曲同难度，例 `boundedquietude_in` ≡ `bounded_in`、
+#:     `wanju_in` ≡ `xd8e302e4_in`、`adastra_in` ≡ `adastraperaspera_in`、`chrono` ≡ `chronostasis_in`
+#:   · 实验变体 4 条 —— `breakover_at4/5/6`、`lhcl_in_off`（同曲同难度，不同参数跑出来的对照）
+#:   · 旧格式残留 3 条 —— `inori` / `inori_at` / `70mf_tailfix`，payload 里 `song == ''`
+#:     （早期解析还没写歌名的产物，打进去会得到空曲名卡片）
+#:
+#: ⛔ 这不是「永久黑名单」：游戏正式谱面的 key 由 `song_dir` 派生、带难度后缀或 hash，
+#:   不会长成这些名字。真要临时打其中某首，`--keys <key>` 显式指定即可（会打印一行提示）。
+EXCLUDE_KEYS: frozenset[str] = frozenset({
+    "70mf_tailfix",
+    "adastra", "adastra_ez", "adastra_hd", "adastra_in",
+    "boundedquietude_in",
+    "breakover_at", "breakover_at4", "breakover_at5", "breakover_at6",
+    "burn_follow",
+    "chrono",
+    "credits",
+    "gimmick_in",
+    "hardcorekwaya_ez",
+    "inori", "inori_at",
+    "kokoro",
+    "kuangxi",
+    "lacamp",
+    "lhcl_in", "lhcl_in_off",
+    "lumi",
+    "meikyo",
+    "notomorrow",
+    "qi_at",
+    "qzw_ez", "qzw_in",
+    "random1",
+    "wanju", "wanju_at", "wanju_in",
+    "zhanming",
+})
+
+
+def merge_expected(disk_keys: Iterable[str]) -> list[str]:
+    """把「磁盘上真实存在的 key」合并成打包清单。
+
+    顺序 = `SONGS` 原序（**保证旧产物逐位可复现**） + 新曲按 key 排序追加在末尾。
+    ★ 追加在末尾还有一个好处：新曲与老曲撞名时，`disambiguate()` 只给新曲加后缀，
+      老曲在 manifest 里的 `name` 一个都不变，App 里已有曲目不会突然改名。
+
+    ★ 拆成纯函数是为了能脱离磁盘测：测试直接喂一个假集合，不必造真实 payload
+      —— 造文件会写进 assets/，忘了复原就把假曲打进 APK（2026-11-02 自审第 14 条）。
+    """
+    extra = sorted(set(disk_keys) - set(SONGS) - EXCLUDE_KEYS)
+    return list(SONGS) + extra
+
+
+def expected_keys() -> list[str]:
+    """本机**应该**打包的完整清单（磁盘 glob 的薄封装，不含存在性过滤）。"""
+    return merge_expected(
+        p.stem.removeprefix("touches_") for p in (ROOT / "out").glob("touches_*.json"))
+
 #: 难度等级只登记**有真据**的：bounded_in = IN 16 来自 2026-10-23 真机就绪界面截图。
 #: 其余留 None（端内 UI 显示「难度 + 音符数」，不显示假等级）。M3 打包曲库时补真索引。
 LEVEL_BY_KEY: dict[str, int | None] = {"bounded_in": 16}
@@ -1664,7 +1724,8 @@ def timeline_sil_refs() -> dict[str, float]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="打包端内 assets（M1 S1-a）")
-    ap.add_argument("--keys", nargs="*", default=list(SONGS), help="只打这几首（默认全部内置）")
+    ap.add_argument("--keys", nargs="*", default=None,
+                    help="只打这几首（默认 = 磁盘上有载荷的全部：已知曲按固定顺序 + 新曲按 key 追加）")
     ap.add_argument("--out", default=None, help="输出目录（默认 play app 的 assets）")
     ap.add_argument("--list", action="store_true", help="只列出会打包什么，不写文件")
     ap.add_argument("--verify-java", action="store_true", help="附带 Java 排程逐位对拍")
@@ -1673,10 +1734,22 @@ def main() -> int:
 
     out_root = Path(args.out) if args.out else ROOT / "android/play/app/src/main/assets"
 
-    todo = [k for k in args.keys if k in SONGS]
-    missing = [k for k in args.keys if k not in SONGS and (ROOT / "out" / f"touches_{k}.json").exists()]
-    for k in missing:
-        print(f"⚠ {k} 有载荷但没登记曲名/难度 ⇒ 跳过（往 SONGS 里加一行即可）")
+    # ★ 2026-11-02：清单不再来自硬编码白名单，而是「SONGS 基准 + 磁盘自动收录 − 排除表」。
+    #   游戏更新出新歌后，只要 out/ 里有载荷就会自动进包，不需要改源码。
+    expected = expected_keys()
+    wanted = expected if args.keys is None else args.keys
+
+    for k in wanted:
+        if k in EXCLUDE_KEYS:
+            print(f"· {k} 在 EXCLUDE_KEYS（开发期残留）里，本次按显式指定打包")
+        elif k not in set(expected):
+            print(f"⚠ {k} 不在可打包清单里（磁盘上没有 out/touches_{k}.json？）⇒ 跳过")
+
+    todo = [k for k in wanted if payload_path(k).exists()]
+    n_no_payload = len(wanted) - len(todo)
+    if n_no_payload > 0 and args.keys is None:
+        # 默认清单里会有「SONGS 登记了但本机没解出载荷」的（新用户只解了部分谱面）
+        print(f"· 跳过 {n_no_payload} 个磁盘上没有载荷的曲目（没解出来就先跑 tools/extract_chart.py --all）")
     if not todo:
         print("✗ 没有可打包的曲目")
         return 2
@@ -1708,6 +1781,32 @@ def main() -> int:
               f"  {e['bytes_src']/1024:8.0f} KB → {e['bytes_slim']/1024:6.0f} KB"
               f"  sil_ref={e['sil_ref_s']:.4f}s  t_ms {e['t_ms_range'][0]:.0f}~{e['t_ms_range'][1]:.0f}")
 
+    if failed:
+        # ★ 2026-11-02：失败必须「可操作」。原实现只打一行 Exception，用户看到
+        #   `FileNotFoundError: 缺母带 …` 根本不知道下一步该跑哪条命令。
+        print(f"\n✗ {len(failed)} 首打包失败（已完成 {len(entries)} 首）：")
+        no_music = [k for k, m in failed if "缺母带" in m]
+        no_payload = [k for k, m in failed if "缺载荷" in m]
+        rest = [k for k, _m in failed if k not in set(no_music) | set(no_payload)]
+        if no_music:
+            print(f"  · {len(no_music)} 首缺母带 ⇒ 先跑 tools/extract_music.py --all 再打包")
+            print(f"    {' '.join(no_music[:6])}{' …' if len(no_music) > 6 else ''}")
+        if no_payload:
+            print(f"  · {len(no_payload)} 首缺载荷 ⇒ 先跑 tools/extract_chart.py --all")
+        if rest:
+            print(f"  · {len(rest)} 首其他异常 ⇒ 往上翻 ✗ 行看具体错误")
+        # ★ 失败曲目在 `silence_ref` / `env_fingerprint` 阶段抛错时，payload 已经落盘了
+        #   （`pack_one` 先写 dst 再算 sil_ref）。不清理的话，`check_play_apk.py` 的反向检查会报
+        #   「发现 N 个 payload 不在 manifest 里（manifest 被截断过？）」—— 提示完全指错方向。
+        orphans = []
+        for k, _m in failed:
+            f = out_root / "payload" / f"{k}.json"
+            if f.exists():
+                f.unlink()
+                orphans.append(k)
+        if orphans:
+            print(f"  · 已清掉 {len(orphans)} 个失败曲目的残留 payload（否则 APK 校验会误报「manifest 被截断」）")
+
     # ★ 保证 (显示名, 难度) 唯一：Random 七变体 / Another Me 两首会撞名（2026-10-25 22:1x）
     disambiguate(entries)
     manifest = {
@@ -1725,7 +1824,7 @@ def main() -> int:
     #   而 APK 的 11 组校验**照样全过**（它只查"manifest 可解析 + assets 一致"，不查首数）
     #   ⇒ 这是个**静默**的坑（APK 里只剩一首曲子也能过闸）。
     #   正确行为：子集打包时走**合并** —— 读旧 manifest，只替换本次打的这几条，其余原样保留。
-    partial = set(todo) != set(SONGS)
+    partial = set(todo) != set(expected)
     if partial and mpath.exists():
         old_doc = json.loads(mpath.read_text(encoding="utf-8"))
         old_songs = old_doc.get("songs") or []
@@ -1739,10 +1838,10 @@ def main() -> int:
             # 新登记的曲目（旧 manifest 里没有）追加到末尾
             old_songs.extend(fresh.values())
         manifest["songs"] = old_songs
-        print(f"  ⚠ 子集打包（{len(todo)}/{len(SONGS)}）：manifest 走**合并**模式 "
+        print(f"  ⚠ 子集打包（{len(todo)}/{len(expected)}）：manifest 走**合并**模式 "
               f"（替换 {kept} 条 + 新增 {len(fresh)} 条，保留 {len(old_songs) - kept - len(fresh)} 条原样）")
     elif partial:
-        print(f"  ⚠ 子集打包（{len(todo)}/{len(SONGS)}）且没有旧 manifest ⇒ "
+        print(f"  ⚠ 子集打包（{len(todo)}/{len(expected)}）且没有旧 manifest ⇒ "
               f"只能写 {len(entries)} 首，**出包前必须补全**")
 
     # ★ newline="\n" 必须显式写：Windows 上 write_text 默认把 \n 转成 \r\n，
@@ -1751,14 +1850,28 @@ def main() -> int:
                      encoding="utf-8", newline="\n")
     n_songs = len(manifest["songs"])
     print(f"  ✓ manifest.json（{mpath.stat().st_size} B，{n_songs} 首）")
-    if partial and n_songs != len(SONGS):
-        print(f"  ✗ manifest 首数 {n_songs} ≠ 登记的 {len(SONGS)} ⇒ **拒绝出包**（下面返回非 0）")
+    # ★ 2026-11-02：判据从「不等于」改成「少于」。
+    #   原写法在「显式 --keys 打了一首排除表里的曲目」时会误杀：合并后首数 1057 > 1056，
+    #   而 1057 != 1056 直接拒绝出包，可错误信息看起来却像 manifest 被写坏了。
+    #   真正要防的只有「合并失败导致条目变少」，所以只查 <（方案自审第 13 条）。
+    if partial and n_songs < len(expected):
+        print(f"  ✗ manifest 首数 {n_songs} < 应打包的 {len(expected)} ⇒ **拒绝出包**（合并失败？补全后再出包）")
         return 3
+    if n_songs > len(expected):
+        print(f"  · manifest 首数 {n_songs} > 应打包的 {len(expected)}（多半是显式打了排除表里的曲目）")
 
     if not args.no_selftest:
         selftest(entries, out_root, timeline_sil_refs(), timeline_leads())
         if args.verify_java:
             verify_java(entries, out_root)
+
+    if failed:
+        # ★ 不许静默降级：原有设计是「单曲失败不拖垮全量」（产物仍可用），这没错；
+        #   但把退出码也留在 0，就等于告诉调用方「一切正常」——
+        #   build.sh 拿它出包会得到一个少了几首、却没人知道的 manifest。
+        #   所以：继续打完其余曲目（不中断），最后用非 0 退出码表明「本次不完整」。
+        print(f"\n✗ 本次产物不完整（{len(failed)} 首失败）⇒ 修好后再出包，别拿它 build")
+        return 4
     return 0
 
 

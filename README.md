@@ -122,6 +122,28 @@ PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py
 游戏更新后两个解包工具都是增量的，再跑 `--all` 只补缺的；大版本更新要加 `--no-resume`（谱面）
 和 `--force`（音频）强制重取，否则会沿用旧文件，症状是「整首都偏 / 全 Good」。
 
+出新歌时把上面三条再跑一遍就行，打包会自动收录，不需要改代码：
+
+```bash
+.venv/Scripts/python.exe tools/extract_chart.py --all          # 只解新谱面
+.venv/Scripts/python.exe tools/extract_music.py --all          # 只抓新母带
+PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py     # 自动收录（新曲追加在末尾）
+```
+
+`pack_assets.py` 看的是 `out/touches_*.json` 里有什么（已知曲按固定顺序，新曲按 key 排在末尾），
+所以新歌不用登记。三件事要留意：
+
+- 新曲的 `tap_lead_ms` 和难度等级是空的：前者表示还没真机测过 tap 的 lead，`zero=tap` 模式会拒绝它、
+  只能用 `onset`；后者端内显示 `Lv --`。都不影响打歌。
+- 新曲如果有盲区（`blind_lost > 0`），第 1 轮会丢首音，第 2 轮起才可能全 Perfect。
+- 版本要对齐：两个解包工具拿的是 TapTap 上架的最新版，不一定等于你手机里装的那份。
+  手机还没更新时，新曲卡片会出现但打不了；新版若改过老曲谱面，按新谱面注入会整体错位。
+  要完全对齐就把 `--apk` 指向手机上的安装包：
+  `tools/extract_chart.py --all --apk D:/Phigros.apk`（`tools/extract_music.py` 同样支持）。
+
+打包时若某首失败，会打一行 `✗ <key> …: 缺母带 …` 并以非 0 退出码结束 —— 先补母带再打包，
+别拿缺了几首的 manifest 去出包。
+
 > 这些素材是游戏资产，仅供本机自用；不要随仓库或安装包公开分发。
 
 #### 4. 拉依赖 + 构建 + 安装

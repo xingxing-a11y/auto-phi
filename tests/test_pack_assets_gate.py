@@ -118,3 +118,45 @@ def test_tolerance_is_actually_wired(monkeypatch):
     with pytest.raises(ValueError):
         P.require_game_canvas(cv(1920, 1081), cv(1080, 2340))  # 收紧后 1 px 也红
     assert CANVAS_ASPECT_TOL == 1e-3, "生产默认值必须是 1e-3"
+
+
+# ─────────────────── 新歌自动收录（2026-11-02）───────────────────
+
+def test_merge_expected_keeps_songs_order_and_appends_new_songs():
+    """★ 旧产物必须逐位可复现：前 1056 项必须是 SONGS 原序，新曲只能追加在末尾。
+
+    顺序一旦被打乱，`manifest.json` 就无法与旧版逐字段对比，
+    日后「某个数字变了」时失去基线（方案 §2.2 的核心约束）。
+    """
+    from tools.pack_assets import SONGS, merge_expected
+
+    got = merge_expected({"bounded_in", "zznew_in", "adastra_in", "inori"})
+    assert got[:len(SONGS)] == list(SONGS), "已知曲顺序被改了 ⇒ 旧 manifest 无法逐位对比"
+    assert got[-1] == "zznew_in", "游戏更新出的新曲要追加在末尾"
+
+
+def test_merge_expected_blocks_dev_leftovers():
+    """两类必须能分开：新曲进包、开发期残留（别名/实验/旧格式）不许进包。
+
+    ★ 这里**不能**写成 `assert not (got & EXCLUDE_KEYS)`：一旦有人把排除表清空，
+      该表达式恒为空集、断言照样绿 —— 典型的空转，变异测不出来（2026-11-02 自审补）。
+    """
+    from tools.pack_assets import EXCLUDE_KEYS, merge_expected
+
+    assert len(EXCLUDE_KEYS) == 33, \
+        f"排除表 {len(EXCLUDE_KEYS)} 条，应为 33 —— 这 33 条是逐条核实过的，增删都要重新核"
+    got = set(merge_expected({"zznew_in", "adastra_in", "70mf_tailfix", "inori_at"}))
+    assert "zznew_in" in got
+    for k in ("adastra_in", "70mf_tailfix", "inori_at"):
+        assert k not in got, f"{k} 混进清单（排除表没生效）"
+
+
+def test_exclude_set_is_actually_wired(monkeypatch):
+    """变异防护：排除表若被清空，那几个残留必须立刻出现 —— 否则说明它压根没被读。"""
+    import tools.pack_assets as P
+
+    disk = {"adastra_in", "inori", "70mf_tailfix", "wanju_in"}
+    assert not (set(P.merge_expected(disk)) & disk), "这几个本该被排除表挡住"
+
+    monkeypatch.setattr(P, "EXCLUDE_KEYS", frozenset())
+    assert disk <= set(P.merge_expected(disk)), "清空排除表后仍不出现 ⇒ merge_expected 没读它"

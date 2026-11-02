@@ -57,7 +57,12 @@ if [ "${1:-}" = "assets" ]; then
   echo "[0/8] 重新生成 assets"
   PY="$ROOT/.venv/Scripts/python.exe"
   [ -x "$PY" ] || PY="$(command -v python)"
-  ( cd "$ROOT" && "$PY" tools/pack_assets.py )
+  # ★ 必须检查退出码：pack_assets 在「有曲目失败」时返回 4（产物不完整）。
+  #   这里原来不看退出码 ⇒ 会拿缺了几首的 manifest 继续出包，而且全程没有任何提示。
+  ( cd "$ROOT" && "$PY" tools/pack_assets.py ) || {
+    echo "✗ assets 打包失败（见上面的 ✗ 行）⇒ 中止构建，不要用不完整的 manifest 出包" >&2
+    exit 1
+  }
   shift || true
 fi
 
