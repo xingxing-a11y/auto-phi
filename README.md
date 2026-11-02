@@ -270,7 +270,7 @@ App 里有一页「课题模式」：一次录屏授权加一个会话连打 3 �
 ## 开发与验证
 
 ```bash
-# PC 侧逻辑回归：635 条（谱面解析 / 排程 / 坐标 / 时基）
+# PC 侧逻辑回归：638 条（谱面解析 / 排程 / 坐标 / 时基）
 PYTHONUTF8=1 .venv/Scripts/python.exe -m pytest -q --basetemp=tmp/_ptX -p no:cacheprovider
 
 # 端内纯逻辑自检：301 条断言，不装机
@@ -289,7 +289,7 @@ bash android/play/build.sh install
 | `android/probe/`、`android/pulse/` | 音频 / 起音探针与扫频播放器（标定链路用） |
 | `pgauto/` | PC 侧 Python 库：谱面解析、调度、坐标变换、时基 |
 | `tools/` | 解包（`extract_chart` / `extract_music`）、打包（`pack_assets`）、校验与审计 |
-| `tests/` | 635 条 pytest（PC 侧逻辑 + APK 契约测试） |
+| `tests/` | 638 条 pytest（PC 侧逻辑 + APK 契约测试） |
 | `docs/` | 换机清单、开始按钮标定 |
 
 > `tools/` 里除了主链路的三个脚本，还有一批实验与审计脚本（`audit_*`、`sweep_*`、

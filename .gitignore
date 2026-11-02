@@ -112,6 +112,14 @@ out/*.mp4
 #   这些是设备上的全量流水，占空间且结论已写进 md 报告。
 out/inject_trace*.csv
 
+# ---------- 标定状态的本地备份（只防手滑，不是产物）----------
+# 来源：清理 / 调参前留的一手，例如 `tar czf out/g_state_bak_<日期>.tar.gz -C pgauto g_state.json`。
+# ⛔ 不入库，理由是**同源文件本身就被忽略**（`pgauto/g_state.json`：含设备序列号与逐曲标定值）——
+#   备份跟着入库等于绕过那条规则。而且它们是二进制快照：无法 review、无法 diff。
+# ✅ 版本控制的职责由 git 历史承担；这两份是「本地改坏能退回」的保险，留在磁盘上即可。
+out/g_state_bak_*.tar.gz
+out/g_state_pre_g_cleanup_*.json
+
 # ---------- 构建产物：assets 里的构建指纹（G13）----------
 # `build.sh` 每次构建都会重写它（内容含 rev/dirty/时间戳），所以**不能入库**：
 # 入库的话每构建一次工作树就脏一次，`build.sh` 的 dirty 标记也跟着永远为真。
