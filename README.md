@@ -280,6 +280,10 @@ bash android/play/selftest.sh
 bash android/play/build.sh install
 ```
 
+刚 clone 下来跑 `pytest` 会看到一百多条 skip，那不是失败：曲库素材、`out/` 里的谱面中间件、
+`tmp/` 下的内部审计脚本都按设计不进仓库，缺它们的测试自动跳过。跑完第 3 步（生成曲库素材）
+和 `bash android/play/build.sh` 之后，能跑的自己就回来了。
+
 目录结构：
 
 | 路径 | 是什么 |
