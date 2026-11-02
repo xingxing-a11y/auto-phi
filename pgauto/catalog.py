@@ -30,6 +30,7 @@ Phigros 的谱面不在 `assets/bin/Data` 里，而是走 **Addressables** 分�
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import re
 import struct
@@ -44,6 +45,8 @@ __all__ = [
     "ChartRef",
     "CHART_KEY_RE",
     "ANDROID_PREFIX",
+    "ALIAS",
+    "derive_key",
 ]
 
 #: 谱面资源键。难度码在 4.0.1 起出现 `SP` / `Legacy` / `EZ_Error` 等形态，
@@ -287,3 +290,49 @@ def diff_order(d: str) -> int:
     """难度的习惯排序（显示用）。"""
     order = {"EZ": 0, "HD": 1, "IN": 2, "AT": 3, "SP": 4, "Legacy": 5}
     return order.get(d, 9)
+
+
+# --------------------------------------------------------------------------- #
+# 曲目录名 → 短名 key
+# --------------------------------------------------------------------------- #
+#: 手工别名：目录名首段太长或与别的曲撞车时用它（由作者机器上的历史约定固化）。
+ALIAS = {
+    "70MinutesFighters.かたぎり.0": "70mf",
+    "GungnirFracture.Kryexe.0": "gungnir",
+    "000AinSophAur.Yumeji.0": "yume",
+    "DerSchneid.Ωμεγα.0": "schneid",
+    "Cleyera.Riya.0": "cleyera",
+    "CROSSSOUL.HyuNfeatSyepias.0": "cross",
+    "DistortedFate.Sakuzyo.0": "distort",
+    "AfterZABANIYAMUGEdit.Daily天利.0": "zaban",
+    "Ark.kanoryo.0": "ark",
+    "Shelter.MeatyRabbitNceS.0": "shelter",
+    "SIGMA.Kryexe.0": "sigma",
+    "Verruckt.Raimukun.0": "verruckt",
+    "星拂云锦featkoi.S9ryne.0": "xfyj",
+    "Initialize.iF.0": "init",
+}
+
+
+def derive_key(song: str) -> str:
+    """曲目录名 → 短名 key（有别名用别名，否则取句点前首段并只留 ASCII 字母数字）。
+
+    ★ 2026-10-18 修（真事故预防）：旧版末尾是 `return k or "song"` —— 非 ASCII 曲名
+    （中文 / 日文 / 假名）被正则删空后退化成**同一个固定字符串 `"song"`**。
+    后果不是「名字不好看」，而是：
+      `out/touches_song.json` / `out/notes_song.json` / `songs.song` 缓存被**所有中文曲共用**
+      ⇒ 打第二首中文歌时**静默复用上一首的谱面**（与「同曲多难度按错谱面」同类事故）。
+    现在退化为 `x` + 目录名的 md5 前 8 位：稳定（同名必同 key）、唯一、且 `x` 前缀
+    不会与「纯 ASCII 提取」的真实曲名撞车（真曲名不可能以 x 开头且恰好 9 位十六进制）。
+
+    ⚠ 这条规则决定 `out/touches_<key>.json` 的文件名，**两条不变式不能动**：
+    纯 ASCII 曲名的 key 逐位不变（否则现存的几百份载荷全部改名）、中文 key 互不相同。
+    `tests/test_derive_key.py` 锁着这两条；搬进本模块时是**逐字复制**，没有「顺手优化」。
+    """
+    if song in ALIAS:
+        return ALIAS[song]
+    head = song.split(".")[0]
+    k = re.sub(r"[^0-9A-Za-z]", "", head).lower()
+    if k:
+        return k
+    return "x" + hashlib.md5(song.encode("utf-8")).hexdigest()[:8]

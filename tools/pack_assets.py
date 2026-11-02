@@ -1756,9 +1756,9 @@ def main() -> int:
     n_no_payload = len(wanted) - len(todo)
     if n_no_payload > 0 and args.keys is None:
         # 默认清单里会有「SONGS 登记了但本机没解出载荷」的（新用户只解了部分谱面）
-        print(f"· 跳过 {n_no_payload} 个磁盘上没有载荷的曲目（没解出来就先跑 tools/extract_chart.py --all）")
+        print(f"· 跳过 {n_no_payload} 个磁盘上没有载荷的曲目（先跑 tools/make_payloads.py 生成 out/touches_*.json）")
     if not todo:
-        print("✗ 没有可打包的曲目")
+        print("✗ 没有可打包的曲目（先跑 tools/make_payloads.py 生成 out/touches_*.json）")
         return 2
 
     if args.list:
