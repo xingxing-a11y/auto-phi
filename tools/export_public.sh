@@ -188,11 +188,14 @@ if [ -z "$GIT_NAME" ]; then GIT_NAME="phigros-auto"; fi
 if [ -z "$GIT_EMAIL" ]; then GIT_EMAIL="noreply@example.com"; fi
 
 if [ ! -d "$OUT/.git" ]; then
-  ( cd "$OUT" && git init -q -b master && git add -A && \
+  # ★ 分支名固定 main：GitHub 2020-10 起新建仓库默认 main，两边一致才不会出现
+  #   「远端在 main、本地推 master」两个不相干分支的局面。本机 git 未配置
+  #   init.defaultBranch（仍默认 master），所以这里必须显式写。
+  ( cd "$OUT" && git init -q -b main && git add -A && \
     git -c user.name="$GIT_NAME" -c user.email="$GIT_EMAIL" commit -q -m "initial public export" ) || {
     echo "⚠ git init 失败（不影响文件导出）" >&2
   }
-  echo "· 已建仓库并完成首次提交（分支 master）"
+  echo "· 已建仓库并完成首次提交（分支 main）"
 else
   (
     cd "$OUT"
