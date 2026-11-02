@@ -17,7 +17,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tmp"))
 
-import regime_check  # noqa: E402
+regime_check = pytest.importorskip("regime_check")  # tmp/ 下的门禁工具，公开仓不导出 tmp ⇒ 跳过
 
 # 真实谱面文件：用来驱动 resolve_song / resolve_diff
 WANJU_T = ROOT / "out" / "touches_wanju_at.json"

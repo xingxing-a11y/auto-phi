@@ -40,8 +40,8 @@ TMP = ROOT / "tmp"
 if str(TMP) not in sys.path:
     sys.path.insert(0, str(TMP))
 
-import audio_round as AR  # noqa: E402
-import grade_read as GR  # noqa: E402
+AR = pytest.importorskip("audio_round")  # tmp/ 下的跑分工具，公开仓不导出 tmp ⇒ 跳过
+GR = pytest.importorskip("grade_read")
 
 # hckwaya_r2 的真实结算计数（0998147 / 99.79%，340 音符、0 Drag）。
 H_KCWAYA_R2 = {"early": 0, "late": 2, "p": 338, "g": 2, "b": 0, "m": 0}

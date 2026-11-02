@@ -14,8 +14,17 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 KEYS = ("E_DEFAULT", "E_LO", "E_HI")
+
+#: 本文件测的是「`tmp/audio_round.py` 与 `tmp/grade_read.py` 两份常量拷贝是否同步」，
+#: 两份源码都在 `tmp/`，而公开仓不导出它 ⇒ 只能在主仓跑。
+pytestmark = pytest.mark.skipif(
+    not (ROOT / "tmp" / "audio_round.py").exists(),
+    reason="公开仓不导出 tmp/（被核对的两份实现都不在分发范围内）",
+)
 
 
 def _consts(path: Path) -> dict[str, float]:

@@ -29,9 +29,9 @@ TMP = ROOT / "tmp"
 if str(TMP) not in sys.path:
     sys.path.insert(0, str(TMP))
 
-import apk_audio  # noqa: E402
-import apk_prod  # noqa: E402
-import audio_round as AR  # noqa: E402
+apk_audio = pytest.importorskip("apk_audio")  # tmp/ 下的审计工具，公开仓不导出 tmp ⇒ 跳过
+apk_prod = pytest.importorskip("apk_prod")
+AR = pytest.importorskip("audio_round")
 
 
 # ------------------------------------------------------------------ [1] 胶水层

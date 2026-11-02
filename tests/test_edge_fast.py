@@ -37,7 +37,7 @@ TMP = ROOT / "tmp"
 if str(TMP) not in sys.path:
     sys.path.insert(0, str(TMP))
 
-import audio_round as AR  # noqa: E402
+AR = pytest.importorskip("audio_round")  # tmp/ 下的跑分工具，公开仓不导出 tmp ⇒ 跳过
 
 REF70 = ROOT / "samples" / "70mf" / "music.wav"
 

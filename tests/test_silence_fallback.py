@@ -19,9 +19,9 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tmp"))
+sys.path.insert(0, str(ROOT))
 
-import tb_audio_edge as EDGE  # noqa: E402
+import pgauto.silref as EDGE  # noqa: E402  生产模块（2026-11-02 从 tmp/tb_audio_edge 搬入）
 
 
 def _wav(path: Path, x: np.ndarray, sr: int = 44100) -> Path:

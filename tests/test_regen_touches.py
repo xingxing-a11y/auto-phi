@@ -23,6 +23,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 TMP = ROOT / "tmp"
 
+#: 公开仓按设计不导出 `tmp/`（内部工具不在分发范围内）⇒ 这里只能在主仓跑。
+pytestmark = pytest.mark.skipif(
+    not (TMP / "regen_touches.py").exists(),
+    reason="公开仓不导出 tmp/（载荷重生成工具只在主仓）",
+)
+
 
 def _load(name: str, filename: str):
     spec = importlib.util.spec_from_file_location(name, TMP / filename)

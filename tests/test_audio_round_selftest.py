@@ -12,9 +12,19 @@ from __future__ import annotations
 
 import subprocess
 import sys
+
+import pytest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+#: 公开仓按设计不导出 `tmp/`（那里面是跑分/审计脚本），所以这里只能在**主仓**跑。
+#: ⛔ 这条 skipif 不是给"夹具缺失"开后门 —— 主仓永远有 `tmp/audio_round.py`，
+#:   缺 `_rrhar_48k.wav` 时 selftest 仍然会红，那正是它该干的。
+pytestmark = pytest.mark.skipif(
+    not (ROOT / "tmp" / "audio_round.py").exists(),
+    reason="公开仓不导出 tmp/（跑分工具不在分发范围内）",
+)
 
 
 def test_audio_round_selftest_runs_and_passes():

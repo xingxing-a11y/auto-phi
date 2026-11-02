@@ -20,6 +20,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 TMP = ROOT / "tmp"
 
+#: 公开仓按设计不导出 `tmp/`（内部工具不在分发范围内）⇒ 这里只能在主仓跑。
+#: ⛔ 不是给「夹具缺失」开后门：主仓永远有 tmp/play.py，它坏了照样红。
+pytestmark = pytest.mark.skipif(
+    not (TMP / "play.py").exists(),
+    reason="公开仓不导出 tmp/（派生 key 的实现只在主仓）",
+)
+
 
 def _load(name: str, filename: str):
     """按路径加载脚本（`tmp/` 不是包，也不该为测试改 sys.path）。"""

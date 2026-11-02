@@ -170,6 +170,11 @@ def test_tap_lead_matches_a_measured_timeline(manifest):
       （否则整列被清空、端内 tap 永远拒绝，而测试会"全绿"）。
     """
     leads = _timeline_leads()
+    if not leads:
+        # 真机时间线（tmp/timeline_*.json）不随仓库分发 ⇒ 公开仓无从核对。
+        # ⚠ 用 skip 而不是"放行"：这条测的是「登记的值必须来自某轮实测」，
+        #   没数据就既不能证明也不能推翻，绝不能让它绿着蒙过去。
+        pytest.skip("本机没有 tmp/timeline_*.json（真机时间线不在仓库里）⇒ 无从核对")
     registered = 0
     for s in manifest["songs"]:
         v = s.get("tap_lead_ms")

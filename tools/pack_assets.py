@@ -38,7 +38,8 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tmp"))
+sys.path.insert(0, str(ROOT))          # 供 `from pgauto.silref import …`（生产模块，公开仓也带）
+sys.path.insert(0, str(ROOT / "tmp"))  # 兼容 tmp/ 下的历史脚本（公开仓没有 tmp，插入无害）
 
 #: 端内 `Scheduler.build()` 读的事件字段（改这里必须同步 Scheduler.java:121-130）。
 EVENT_KEYS = ("t_ms", "action", "pointer_id", "x", "y")
@@ -1363,13 +1364,19 @@ def env_fingerprint(song_dir: str) -> str:
 
 
 def silence_ref(song_dir: str) -> dict:
-    """母带「静音→有声」边界（秒）。复用生产函数，不另写一份判据。"""
-    import audio_round as AR  # noqa: PLC0415  （重型依赖只在需要时导入）
+    """母带「静音→有声」边界（秒）。复用生产函数，不另写一份判据。
+
+    ★ 2026-11-02：来源从 `tmp/audio_round`（它再转手 `tmp/tb_audio_edge`）改成 `pgauto.silref`。
+      原来那条链两头都在 `tmp/`，而 `export_public.sh` 按设计不导出 `tmp/` ⇒ 公开仓里
+      `pack_assets` 会在**第一首歌**就 `ImportError: No module named 'audio_round'`
+      （干净环境实测确认）。
+    """
+    from pgauto.silref import SUSTAIN_MS, reference_silence  # noqa: PLC0415
 
     wav = music_path(song_dir)
     if not wav.exists():
         raise FileNotFoundError(f"缺母带 {wav}（sil_ref 无法预算）")
-    rs = AR.reference_silence(str(wav), sustain_ms=AR.SUSTAIN_MS)
+    rs = reference_silence(str(wav), sustain_ms=SUSTAIN_MS)
     # ★ thr 可能是 None（母带算不出边沿阈值 ⇒ reference_silence 给的是兜底值）。
     #   这是**合法状态**：端内读 null 会用相对判据。以前这里直接 float(None) 崩掉，
     #   只是过去 4 首恰好都有 thr 才没暴露；M3 批量打包时第 5 首就炸了。

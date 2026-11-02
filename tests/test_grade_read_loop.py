@@ -25,7 +25,7 @@ TMP = ROOT / "tmp"
 if str(TMP) not in sys.path:
     sys.path.insert(0, str(TMP))
 
-import grade_read as G  # noqa: E402
+G = pytest.importorskip("grade_read")  # tmp/ 下的读数工具，公开仓不导出 tmp ⇒ 跳过
 
 # 玩具狂奏曲 -終焉- AT 的谱面规模（现读 out/notes_wanju_at.json：1374 音符 / Drag 197）
 N_TOTAL = 1374
