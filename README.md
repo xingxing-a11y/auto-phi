@@ -79,19 +79,19 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘
 3. 装三个包并同意许可。这一步只要求当前窗口能找到 JDK 17 —— 给 `JAVA_HOME` 赋值可以，
    让 `java` 待在 PATH 里也可以；两种都只在当前窗口有效，不必改成系统环境变量：
 
-   ```bat
-   :: 换成你自己的两个目录；这两行只对这个窗口生效
-   set SDK=D:\android-sdk
-   set JAVA_HOME=C:\path\to\jdk-17
-   "%SDK%\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=%SDK% "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-   echo y| "%SDK%\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=%SDK% --licenses
+   ```bash
+   # 换成你自己的两个目录；这两行只对这个窗口生效
+   export SDK="D:/android-sdk"
+   export JAVA_HOME="C:/path/to/jdk-17"
+   "$SDK/cmdline-tools/latest/bin/sdkmanager.bat" --sdk_root="$SDK" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+   yes | "$SDK/cmdline-tools/latest/bin/sdkmanager.bat" --sdk_root="$SDK" --licenses
    ```
 
-4. 验收：`%SDK%\platforms\android-34\android.jar` 与 `%SDK%\build-tools\34.0.0\aapt2.exe` 都存在。
+4. 验收：`$SDK/platforms/android-34/android.jar` 与 `$SDK/build-tools/34.0.0/aapt2.exe` 都存在。
 
 这里有两个名字很像、但归不同程序管的变量：`sdkmanager` 认 `JAVA_HOME`，本项目的 `build.sh` 只认
 `JDK_HOME`（它完全不看 `JAVA_HOME`）。构建时把 `JDK_HOME` 指向同一个 JDK 17 目录即可，同样不需要
-写成系统环境变量 —— 只在这个终端窗口里 set 一下。系统里已经配好的话就什么都不用做。
+写成系统环境变量 —— 只在这个终端窗口里 export 一下。系统里已经配好的话就什么都不用做。
 
 已经装了 Android Studio 的，在 Settings → Languages & Frameworks → Android SDK 里勾上
 「Android 14 (API 34)」和 build-tools 34.0.0，再把「Android SDK Location」那一栏的值当成
@@ -99,30 +99,19 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘
 
 > ⚠ **电脑这边目前只支持 Windows**。`android/play/build.sh` 调的是 `aapt2.exe` / `d8.bat` / `javac.exe`，
 > 默认路径也是 `D:/...` 风格，只在 Windows + Git Bash 下验证过。Linux / macOS 要自己改写这个脚本
-> （把 `.exe` / `.bat` 去掉、路径换成对应的 SDK 布局）。下面的命令都在项目根目录执行。
-
-> ⚠ **下面的命令都是 Git Bash 写法**。抄进 cmd.exe 会把 `.venv/Scripts/python.exe` 读成「执行 `.venv`」，
-> 报「不是内部或外部命令」——cmd 只认反斜杠，`export` 在它那里也不存在。每段都给了两种写法，
-> 照你用的 shell 抄。
+> （把 `.exe` / `.bat` 去掉、路径换成对应的 SDK 布局）。下面的命令都在项目根目录、用 Git Bash 执行
+> （资源管理器里右键项目文件夹 → Open Git Bash here）。
 
 装好 Python 后先建虚拟环境、装依赖 —— 不装的话 `tools/extract_chart.py` 会直接
 `ModuleNotFoundError: No module named 'UnityPy'`：
 
 ```bash
-# Git Bash
 python -m venv .venv
 .venv/Scripts/python.exe -m pip install -r requirements.txt
 ```
 
-```bat
-:: cmd.exe
-py -3 -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-`python` 在 Windows 上可能是微软商店的占位程序：敲下去没有任何输出，也不会真的建环境
-（现象是命令「成功」返回，`.venv` 却没出现）。先用 `py -3 -V` 确认能打印版本号，
-打印不出来就是真 Python 没装、或没加进 PATH。
+如果 `python -V` 打印不出东西（Windows 上可能命中的是微软商店的占位程序，敲下去什么也不做），
+就改用 `py -3` 开头，比如 `py -3 -m venv .venv`。
 
 JDK / SDK / adb 不在脚本默认位置时，用环境变量告诉构建脚本。下面三行是示例值，必须换成你自己机器上的
 路径；它们只在当前终端窗口有效，重开要重设。不设置时脚本会退到自己写死的默认值 —— 那是作者机器上的
@@ -130,18 +119,10 @@ JDK / SDK / adb 不在脚本默认位置时，用环境变量告诉构建脚本�
 `ANDROID_SDK` 指向 SDK 根目录（`platforms` 的上一级），不是 `platforms` 本身：
 
 ```bash
-# Git Bash —— 三行都换成你自己的路径；行尾注释是脚本内置默认值，不是你要填的值
+# 三行都换成你自己的路径；行尾注释是脚本内置默认值，不是你要填的值
 export JDK_HOME="C:/Program Files/Java/jdk-17"                      # 默认 D:/OpenJDK17_17.0.19_10
 export ANDROID_SDK="C:/Users/你的用户名/AppData/Local/Android/Sdk"   # 默认 D:/android-sdk
 export ADB="C:/platform-tools/adb.exe"                              # 默认 D:/platform-tools/adb.exe
-```
-
-```bat
-:: cmd.exe —— 同样换成你自己的路径；cmd 里路径用反斜杠
-:: 默认值是 D:\android-sdk / D:\OpenJDK17_17.0.19_10 / D:\platform-tools\adb.exe
-set JDK_HOME=C:\Program Files\Java\jdk-17
-set ANDROID_SDK=C:\Users\你的用户名\AppData\Local\Android\Sdk
-set ADB=C:\platform-tools\adb.exe
 ```
 
 #### 2. 起 Shizuku
