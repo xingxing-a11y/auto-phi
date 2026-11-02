@@ -42,6 +42,9 @@ CANVAS_W, CANVAS_H = sch.CANVAS
 @pytest.fixture(scope="module")
 def real():
     """真实官谱的 notes.json（Rrhar'il AT，含 lines 几何）。"""
+    if not SAMPLE_NOTES.exists():
+        # 谱面中间件不入库（可由 tools/extract_chart.py 重生成）⇒ 缺了就 skip，不是 error。
+        pytest.skip(f"缺 {SAMPLE_NOTES}：先跑 tools/extract_chart.py")
     return sch.load_notes(SAMPLE_NOTES)
 
 

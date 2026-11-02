@@ -53,7 +53,10 @@ def strip_java_comments(src: str) -> str:
 @pytest.fixture(scope="module")
 def manifest() -> dict:
     p = ASSETS / "manifest.json"
-    assert p.exists(), f"缺 {p}（先跑 .venv/Scripts/python.exe tools/pack_assets.py）"
+    if not p.exists():
+        # 曲库素材按设计不进仓库（游戏资产）；没跑 pack_assets 之前无从核对 ⇒ skip 而不是 error。
+        # 主仓永远有它，改坏了照样红 —— 这条 skip 只对「刚 clone 还没生成素材」生效。
+        pytest.skip(f"缺 {p}：先跑 tools/pack_assets.py（首次 clone 时本来就没有）")
     return json.loads(p.read_text(encoding="utf-8"))
 
 

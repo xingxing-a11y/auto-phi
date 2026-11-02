@@ -96,7 +96,10 @@ def _all_payloads():
 def test_all_real_payloads_pass_the_gate():
     """★ 零误伤的硬证据：磁盘上**全部**真实载荷都必须通过（不是抽检）。"""
     paths = _all_payloads()
-    assert len(paths) >= 70, f"只找到 {len(paths)} 份载荷，样本不足"
+    if len(paths) < 70:
+        # 公开仓不含曲库：没跑过 extract/pack 就没有载荷可验 ⇒ skip。
+        # ⚠ 不能用「断言样本数」当判据 —— 那会让"没有素材"表现成测试失败，与事实不符。
+        pytest.skip(f"只找到 {len(paths)} 份载荷（先跑 tools/pack_assets.py）")
     bad = []
     for p in paths:
         d = json.loads(p.read_text(encoding="utf-8"))
