@@ -88,9 +88,6 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘
 
 4. 验收：`$SDK/platforms/android-34/android.jar` 与 `$SDK/build-tools/34.0.0/aapt2.exe` 都存在。
 
-命令里没有 `--sdk_root`：`sdkmanager` 会从自己所在的 `cmdline-tools/latest/bin` 往上推出 SDK 目录，
-所以只有开头那两个路径要改。
-
 这里有两个名字很像、但归不同程序管的变量：`sdkmanager` 认 `JAVA_HOME`，本项目的 `build.sh` 只认
 `JDK_HOME`（它完全不看 `JAVA_HOME`）。构建时把 `JDK_HOME` 指向同一个 JDK 17 目录即可，同样不需要
 写成系统环境变量 —— 只在这个终端窗口里 export 一下。系统里已经配好的话就什么都不用做。
@@ -99,26 +96,20 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘
 「Android 14 (API 34)」和 build-tools 34.0.0，再把「Android SDK Location」那一栏的值当成
 `ANDROID_SDK` 用。
 
-> ⚠ **电脑这边目前只支持 Windows**。`android/play/build.sh` 调的是 `aapt2.exe` / `d8.bat` / `javac.exe`，
-> 默认路径也是 `D:/...` 风格，只在 Windows + Git Bash 下验证过。Linux / macOS 要自己改写这个脚本
-> （把 `.exe` / `.bat` 去掉、路径换成对应的 SDK 布局）。下面的命令都在项目根目录、用 Git Bash 执行
-> （资源管理器里右键项目文件夹 → Open Git Bash here）。
+> ⚠ **电脑这边目前只支持 Windows**，`android/play/build.sh` 调的是 `aapt2.exe` / `d8.bat` / `javac.exe`。
+> 下面的命令都在项目根目录、用 Git Bash 执行（资源管理器里右键项目文件夹 → Open Git Bash here）。
 
-装好 Python 后先建虚拟环境、装依赖 —— 不装的话 `tools/extract_chart.py` 会直接
-`ModuleNotFoundError: No module named 'UnityPy'`：
+装好 Python 后先建虚拟环境、装依赖：
 
 ```bash
 python -m venv .venv
 .venv/Scripts/python.exe -m pip install -r requirements.txt
 ```
 
-如果 `python -V` 打印不出东西（Windows 上可能命中的是微软商店的占位程序，敲下去什么也不做），
-就改用 `py -3` 开头，比如 `py -3 -m venv .venv`。
+`python` 用不了时改用 `py -3`，例如 `py -3 -m venv .venv`。
 
-JDK / SDK / adb 不在脚本默认位置时，用环境变量告诉构建脚本。下面三行是示例值，必须换成你自己机器上的
-路径；它们只在当前终端窗口有效，重开要重设。不设置时脚本会退到自己写死的默认值 —— 那是作者机器上的
-布局（`D:/android-sdk`、`D:/OpenJDK17_17.0.19_10`、`D:/platform-tools/adb.exe`），在你的机器上多半对不上。
-`ANDROID_SDK` 指向 SDK 根目录（`platforms` 的上一级），不是 `platforms` 本身：
+JDK / SDK / adb 不在脚本默认位置时，用环境变量告诉构建脚本。下面三行换成你自己机器上的路径，
+只在当前终端窗口有效，重开要重设。`ANDROID_SDK` 指向 SDK 根目录（`platforms` 的上一级）：
 
 ```bash
 # 三行都换成你自己的路径；行尾注释是脚本内置默认值，不是你要填的值
@@ -215,7 +206,7 @@ bash android/play/build.sh install          # 构建并直接 adb install -r
 （`ANDROID_SDK`、`JDK_HOME`、`ADB`）；不设就用脚本里写死的默认值，那是作者机器上的路径
 （见「准备」第 1 节），在你的机器上要自己 export 或 set。
 
-> 装机后核对版本请看 `dumpsys package io.pgauto.play` 的 `lastUpdateTime`，不要看 `versionCode`。
+> 装机后核对版本请看 `dumpsys package io.pgauto.play` 的 `lastUpdateTime`。
 
 ### 运行
 
