@@ -58,6 +58,26 @@
 - 一台电脑，只在前面几步用：Python 3.11+、JDK 17、Android SDK（build-tools 34.0.0 + platforms;android-34）；
 - 手机上装 Shizuku（建议 13.6.0 及以上）：<https://github.com/RikkaApps/Shizuku/releases>
 
+> ⚠ **电脑这边目前只支持 Windows**。`android/play/build.sh` 调的是 `aapt2.exe` / `d8.bat` / `javac.exe`，
+> 默认路径也是 `D:/...` 风格，只在 Windows + Git Bash 下验证过。Linux / macOS 要自己改写这个脚本
+> （把 `.exe` / `.bat` 去掉、路径换成对应的 SDK 布局）。下面的命令都在**项目根目录**执行。
+
+装好 Python 后先建虚拟环境、装依赖 —— 不装的话 `tools/extract_chart.py` 会直接
+`ModuleNotFoundError: No module named 'UnityPy'`：
+
+```bash
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r requirements.txt
+```
+
+JDK / SDK / adb 不在默认位置时，用环境变量告诉构建脚本（不设就用脚本里的默认值，多半对不上你的机器）：
+
+```bash
+export JDK_HOME="C:/Program Files/Java/jdk-17"
+export ANDROID_SDK="C:/Users/你的用户名/AppData/Local/Android/Sdk"
+export ADB="C:/platform-tools/adb.exe"
+```
+
 #### 2. 起 Shizuku
 
 Shizuku 需要一个有 shell 权限的入口拉起服务，两种都行：
@@ -104,7 +124,15 @@ PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py
 
 > 这些素材是游戏资产，仅供本机自用；不要随仓库或安装包公开分发。
 
-#### 4. 构建 + 安装
+#### 4. 拉依赖 + 构建 + 安装
+
+Shizuku 的 4 个 aar 属于第三方二进制，**不随仓库分发**，第一次构建前先拉一下（约 60 KB）：
+
+```bash
+bash android/injector/fetch_deps.sh         # 下载到 android/vendor/，已存在则跳过
+```
+
+然后构建。脚本会先自检 aar / JDK / SDK / assets / 图标，缺什么就点名告诉你缺哪个：
 
 ```bash
 bash android/play/build.sh                  # 构建 → android/play/build/pgplay.apk
@@ -121,12 +149,15 @@ bash android/play/build.sh install          # 构建并直接 adb install -r
 
 #### 5. 打一局
 
-1. 打开 App，选一首曲，进「3 开火」页，点「申请 Shizuku 权限」，在 Shizuku 弹框里点允许
+1. 打开 App：**1 选曲 → 2 难度**，选好要打的那一首。App 曲库的作用是「指定打哪一份谱面」，
+   不选就点「3 开火」会被**静默弹回选曲页**（没有报错，看着像按钮坏了）；
+2. 进「3 开火」页，点「申请 Shizuku 权限」，在 Shizuku 弹框里点允许
    （判据：那一行变成「Shizuku 权限：已授予 ✓」）；
-2. 在游戏里选中曲目与难度，停在 ▶ 就绪界面；
-3. 回 App 点「开始演奏」→ 允许一次屏幕录制授权；
-4. 授权一通过就立刻切回游戏（倒计时只有 8 秒），到点 App 自己点 ▶ 并按时刻注入；
-5. 打完回 App 看日志（默认收起，点「日志 ▸ 展开」可看本轮全部行）；曲目卡片上会显示这首的 `K`。
+3. 在**游戏里选同一首、同一难度**，停在 ▶ 就绪界面 —— App 里选的和游戏里选的必须是同一首，
+   不一致就会照着别的谱面注入，整首都错位；
+4. 回 App 点「开始演奏」→ 允许一次屏幕录制授权；
+5. 授权一通过就立刻切回游戏（倒计时只有 8 秒），到点 App 自己点 ▶ 并按时刻注入；
+6. 打完回 App 看日志（默认收起，点「日志 ▸ 展开」可看本轮全部行）；曲目卡片上会显示这首的 `K`。
 
 > 新曲第 1 轮用的是 `c`（此时还没有该曲的 `K`），同时自动标定 `K`；第 2 轮起才用 `K + c`。
 
