@@ -78,6 +78,7 @@ Android SDK 没有安装程序，解压到哪、哪就是它的位置。只构�
 3. 装三个包并同意许可（cmd.exe，`JAVA_HOME` 换成你的 JDK 17 目录）：
 
    ```bat
+   :: 前两行都换成你自己的路径（SDK 根目录 / JDK 17 目录）
    set SDK=D:\android-sdk
    set JAVA_HOME=C:\path\to\jdk-17
    "%SDK%\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=%SDK% "platform-tools" "platforms;android-34" "build-tools;34.0.0"
@@ -117,18 +118,21 @@ py -3 -m venv .venv
 （现象是命令「成功」返回，`.venv` 却没出现）。先用 `py -3 -V` 确认能打印版本号，
 打印不出来就是真 Python 没装、或没加进 PATH。
 
-JDK / SDK / adb 不在默认位置时，用环境变量告诉构建脚本。这三行是模板（`你的用户名` 是占位符），
+JDK / SDK / adb 不在脚本默认位置时，用环境变量告诉构建脚本。下面三行是示例值，必须换成你自己机器上的
+路径；它们只在当前终端窗口有效，重开要重设。不设置时脚本会退到自己写死的默认值 —— 那是作者机器上的
+布局（`D:/android-sdk`、`D:/OpenJDK17_17.0.19_10`、`D:/platform-tools/adb.exe`），在你的机器上多半对不上。
 `ANDROID_SDK` 指向 SDK 根目录（`platforms` 的上一级），不是 `platforms` 本身：
 
 ```bash
-# Git Bash
-export JDK_HOME="C:/Program Files/Java/jdk-17"
-export ANDROID_SDK="C:/Users/你的用户名/AppData/Local/Android/Sdk"
-export ADB="C:/platform-tools/adb.exe"
+# Git Bash —— 三行都换成你自己的路径；行尾注释是脚本内置默认值，不是你要填的值
+export JDK_HOME="C:/Program Files/Java/jdk-17"                      # 默认 D:/OpenJDK17_17.0.19_10
+export ANDROID_SDK="C:/Users/你的用户名/AppData/Local/Android/Sdk"   # 默认 D:/android-sdk
+export ADB="C:/platform-tools/adb.exe"                              # 默认 D:/platform-tools/adb.exe
 ```
 
 ```bat
-:: cmd.exe
+:: cmd.exe —— 同样换成你自己的路径；cmd 里路径用反斜杠
+:: 默认值是 D:\android-sdk / D:\OpenJDK17_17.0.19_10 / D:\platform-tools\adb.exe
 set JDK_HOME=C:\Program Files\Java\jdk-17
 set ANDROID_SDK=C:\Users\你的用户名\AppData\Local\Android\Sdk
 set ADB=C:\platform-tools\adb.exe
@@ -219,7 +223,8 @@ bash android/play/build.sh install          # 构建并直接 adb install -r
 
 版本号形如 `0.1-m1s1d+g<rev>`，同时写进 `assets/build_info.txt` —— App 界面、`dumpsys`、注入 trace
 三处一致，出问题先对这三个数。构建脚本的 SDK / JDK / adb 路径都可用环境变量覆盖
-（`ANDROID_SDK`、`JDK_HOME`、`ADB`）。
+（`ANDROID_SDK`、`JDK_HOME`、`ADB`）；不设就用脚本里写死的默认值，那是作者机器上的路径
+（见「准备」第 1 节），在你的机器上要自己 export 或 set。
 
 > 装机后核对版本请看 `dumpsys package io.pgauto.play` 的 `lastUpdateTime`，不要看 `versionCode`。
 
