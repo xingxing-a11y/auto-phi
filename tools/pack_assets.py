@@ -1729,6 +1729,23 @@ def timeline_sil_refs() -> dict[str, float]:
     return out
 
 
+def no_payload_hint(n: int) -> str:
+    """「缺载荷」时该跑哪条命令 —— 抽成纯函数只为可断言（见 tests/test_pack_assets_hint.py）。
+
+    ★ 2026-11-03 修 bug：这里原来写「先跑 tools/extract_chart.py --all」，指错方向
+      —— `extract_chart` 只产 `out/charts/`，跑完仍是 0 个载荷。真正生成载荷的是
+      `make_payloads.py`（它读 charts 出 `out/touches_<key>.json`）。用户照旧提示跑完再打包，
+      会得到一模一样的报错，白绕一圈。
+    """
+    return (f"· 跳过 {n} 个磁盘上没有载荷的曲目"
+            f"（先跑 tools/make_payloads.py 生成 out/touches_*.json）")
+
+
+def empty_todo_hint() -> str:
+    """一句都没有可打包时的提示（同一个根因，措辞更强）。"""
+    return "✗ 没有可打包的曲目（先跑 tools/make_payloads.py 生成 out/touches_*.json）"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="打包端内 assets（M1 S1-a）")
     ap.add_argument("--keys", nargs="*", default=None,
@@ -1756,9 +1773,9 @@ def main() -> int:
     n_no_payload = len(wanted) - len(todo)
     if n_no_payload > 0 and args.keys is None:
         # 默认清单里会有「SONGS 登记了但本机没解出载荷」的（新用户只解了部分谱面）
-        print(f"· 跳过 {n_no_payload} 个磁盘上没有载荷的曲目（先跑 tools/make_payloads.py 生成 out/touches_*.json）")
+        print(no_payload_hint(n_no_payload))
     if not todo:
-        print("✗ 没有可打包的曲目（先跑 tools/make_payloads.py 生成 out/touches_*.json）")
+        print(empty_todo_hint())
         return 2
 
     if args.list:
@@ -1793,13 +1810,20 @@ def main() -> int:
         #   `FileNotFoundError: 缺母带 …` 根本不知道下一步该跑哪条命令。
         print(f"\n✗ {len(failed)} 首打包失败（已完成 {len(entries)} 首）：")
         no_music = [k for k, m in failed if "缺母带" in m]
+        # ⚠ 死分支（2026-11-03 核实）：`todo` 只保留 `payload_path(k).exists()` 的曲目，
+        #   而 `pack_one` 的「缺载荷」异常是同一判据 ⇒ 走到这里不可能命中。
+        #   提示仍保留（万一将来 `todo` 的构造条件放宽），但**缺载荷的真正出口在上面**：
+        #   `· 跳过 N 个磁盘上没有载荷的曲目（先跑 tools/make_payloads.py…）`。
         no_payload = [k for k, m in failed if "缺载荷" in m]
         rest = [k for k, _m in failed if k not in set(no_music) | set(no_payload)]
         if no_music:
             print(f"  · {len(no_music)} 首缺母带 ⇒ 先跑 tools/extract_music.py --all 再打包")
             print(f"    {' '.join(no_music[:6])}{' …' if len(no_music) > 6 else ''}")
         if no_payload:
-            print(f"  · {len(no_payload)} 首缺载荷 ⇒ 先跑 tools/extract_chart.py --all")
+            # ★ 2026-11-03：载荷是 `out/touches_<key>.json`，由 make_payloads 从**谱面**生成。
+            #   原来这里指 `extract_chart.py`（它只产 `out/charts/`，跑完这里照样缺载荷）⇒ 指错方向。
+            print(f"  · {len(no_payload)} 首缺载荷 ⇒ 先跑 tools/make_payloads.py（它读 out/charts/ 出 out/touches_*.json）")
+            print(f"    谱面也没有的话，先跑 tools/extract_chart.py --all")
         if rest:
             print(f"  · {len(rest)} 首其他异常 ⇒ 往上翻 ✗ 行看具体错误")
         # ★ 失败曲目在 `silence_ref` / `env_fingerprint` 阶段抛错时，payload 已经落盘了

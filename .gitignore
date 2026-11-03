@@ -25,6 +25,15 @@ __pycache__/
 *.apk
 out/charts/
 
+# ---------- 曲库素材：本机解包产物，不入库（2026-11-03 补）----------
+# `extract_music --all` 会在 samples/<曲>/ 下写 music.wav（被上面的 *.wav 挡住）+ music.info.json。
+# 主仓早期把 335 个 music.info.json 提交过（现在仍是跟踪状态，git 不会因本条规则取消跟踪）；
+# 但公开仓按设计不导出 samples/（`export_public.sh` 第 102 行 keep=0），所以**新用户 clone 后
+# 这些文件全是 untracked** —— 334 行 `??` 噪声，看起来像「有东西没提交」。
+# ⛔ 不要试图提交它们：wav 永远拿不到，只提交 info.json 等于入库半套素材。
+# ⛔ 也不要改成忽略整个 samples/ 之后又 `git rm --cached` 主仓那 335 个 —— 那是删库操作，须先报告。
+samples/**/music.info.json
+
 # 变体跑分时的音符表副本 —— 恒等于 out/notes_<谱>.json 的纯拷贝（变体只改事件、不改谱面），
 # 可用 `tmp/make_tailfix.py --notes` 重生成 ⇒ 不值得入库（9 MB 级重复）。
 out/notes_*_tailfix.json

@@ -156,7 +156,7 @@ App 需要两样东西：谱面（音符时刻与坐标）和母带音频（算�
 # 母带音频（数 GB，已存在的自动跳过）
 .venv/Scripts/python.exe tools/extract_music.py --all
 
-# 谱面 → 触摸事件（缺这一步打不了包；1056 首约 10~30 分钟，先 --limit 3 试跑）
+# 谱面 → 触摸事件（缺这一步打不了包；1056 首约 6 分钟，先 --limit 3 试跑）
 .venv/Scripts/python.exe tools/make_payloads.py
 
 # 打包成 App 的资源（产出 manifest.json + payload/*.json）
@@ -164,6 +164,11 @@ PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py
 
 # 只要几首：--song "曲名子串"；想用本地 APK 加 --apk path/to/Phigros.apk
 ```
+
+这四条命令的产物都留在你本机（`samples/`、`out/` 下），`.gitignore` 已把它们排除，
+所以 `git status` 里看不到它们 —— 磁盘上有、状态里没有，是正常的，不用提交。
+最后一步的 `android/play/app/src/main/assets/` 是个例外：它是打包的落地目录，会显示成未跟踪，
+同样不用提交（它就是你要的东西，出包时被塞进 APK）。
 
 `make_payloads.py` 是「谱面 → 音符 → 触摸事件」两步的批处理，产物是 `out/touches_<key>.json`
 （`pack_assets.py` 只认这个）。它按 `tools/song_keys.json` 给每首起名字 —— 那份表把
@@ -191,8 +196,9 @@ PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py      # 自动收录�
 `pack_assets.py` 看的是 `out/touches_*.json` 里有什么（已知曲按固定顺序，新曲按 key 排在末尾），
 所以新歌不用登记。三件事要留意：
 
-- 新曲的 `tap_lead_ms` 和难度等级是空的：前者表示还没真机测过 tap 的 lead，`zero=tap` 模式会拒绝它、
-  只能用 `onset`；后者端内显示 `Lv --`。都不影响打歌。
+- `tap_lead_ms` 和难度等级只有 `bounded_in` 登记了（出货 manifest 里 1056 首中仅此一首有值），
+  其余全是空的 —— 包括所有新曲。前者表示还没真机测过 tap 的 lead，`zero=tap` 模式会拒绝它、
+  只能用 `onset`；后者端内显示 `Lv --`。两项都不影响打歌。
 - 新曲如果有盲区（`blind_lost > 0`），第 1 轮会丢首音，第 2 轮起才可能全 Perfect。
 - 版本要对齐：两个解包工具拿的是 TapTap 上架的最新版，不一定等于你手机里装的那份。
   手机还没更新时，新曲卡片会出现但打不了；新版若改过老曲谱面，按新谱面注入会整体错位。
