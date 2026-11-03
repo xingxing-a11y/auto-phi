@@ -190,12 +190,17 @@ Shizuku 的 4 个 aar 属于第三方二进制，**不随仓库分发**，第一
 bash android/injector/fetch_deps.sh         # 下载到 android/vendor/，已存在则跳过
 ```
 
-然后构建。脚本会先自检 aar / JDK / SDK / assets / 图标，缺什么就点名告诉你缺哪个：
+然后构建。脚本会先自检 aar / JDK / SDK / assets / 图标，缺什么就点名告诉你缺哪个。
+手机需打开开发者模式并打开 USB 调试（只有 `install` 那步要连手机，只构建可以不插）：
 
 ```bash
 bash android/play/build.sh                  # 构建 → android/play/build/pgplay.apk
 bash android/play/build.sh install          # 构建并直接 adb install -r
 ```
+
+> 手机上已经装过本 App、且签名对不上时（换目录重新 clone 就会这样），`install` 会
+> 自动降级为「卸载重装」：端内标定数据（▶ 落点 / 各曲 K / 设备 c）会清零，警告打印后
+> 有 5 秒可 Ctrl-C 中止；想保数据就把旧的 `debug.keystore` 拷到 `android/play/` 下再跑。
 
 版本号形如 `0.1-m1s1d+g<rev>`，同时写进 `assets/build_info.txt` —— App 界面、`dumpsys`、注入 trace
 三处一致，出问题先对这三个数。构建脚本的 SDK / JDK / adb 路径都可用环境变量覆盖

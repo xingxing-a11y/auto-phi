@@ -239,7 +239,28 @@ for _a in "$@"; do
 done
 if [ "$DO_INSTALL" = "1" ]; then
   ADB="${ADB:-D:/platform-tools/adb.exe}"
-  MSYS_NO_PATHCONV=1 "$ADB" install -r "$APK"
+  _pkg=io.pgauto.play
+  # 2026-11-03：签名不一致（典型：换目录重新 clone ⇒ debug.keystore 被现场重新生成，
+  # 公开仓按设计不导出 keystore）时，install -r 会被系统拒绝
+  # （INSTALL_FAILED_UPDATE_INCOMPATIBLE）。真正的新用户手机上没有旧包，遇不到；
+  # 遇到的是已有旧安装的人 —— 对他们「卸载重装」有代价，必须打印清楚再动手。
+  # 默认自动重装；打印警告后留 5 秒可 Ctrl-C 中止（不做成 y/N 问答，免得卡住整段粘贴的用法）。
+  if _out="$(MSYS_NO_PATHCONV=1 "$ADB" install -r "$APK" 2>&1)"; then
+    if [ -n "$_out" ]; then printf '%s\n' "$_out"; fi
+  else
+    printf '%s\n' "$_out"
+    if printf '%s' "$_out" | grep -q "INSTALL_FAILED_UPDATE_INCOMPATIBLE"; then
+      echo "  ⚠ 手机上已装的 $_pkg 是另一把签名钥匙签的 ⇒ 覆盖安装被系统拒绝。"
+      echo "  ⚠ 降级为「卸载重装」：端内标定数据（▶ 落点 / 各曲 K / 设备 c）与打歌日志会随卸载清零，"
+      echo "    重装后 Shizuku 授权也要重新点一次。想保数据就现在 Ctrl-C 中止，"
+      echo "    把旧的 debug.keystore 拷到本仓 android/play/ 下再重跑。5 秒后开始卸载……"
+      sleep 5
+      MSYS_NO_PATHCONV=1 "$ADB" uninstall "$_pkg"
+      MSYS_NO_PATHCONV=1 "$ADB" install -r "$APK"
+    else
+      exit 1
+    fi
+  fi
   echo "  装机后核对（⛔ 看 lastUpdateTime，别看 versionCode）："
   MSYS_NO_PATHCONV=1 "$ADB" shell dumpsys package io.pgauto.play \
     | grep -E "versionName|lastUpdateTime" | head -2
