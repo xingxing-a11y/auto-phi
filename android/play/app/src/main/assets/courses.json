@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "generated_by": "hand (2026-10-28, 课题模式固定预设)",
+  "note": "课题模式的固定搭配。改搭配只需改本文件 + 重打包，不用改代码。三首顺序 = 游戏里选歌的顺序。选曲约束：第 2/3 首必须零盲区（自动接续、没有点击锚）。",
+  "presets": [
+    {
+      "id": "b17",
+      "name": "B 组 · 17 级（全零盲区）",
+      "songs": [
+        {
+          "key": "erabyeconnec10n_at",
+          "name": "ERABYECONNEC10 N",
+          "diff": "AT",
+          "blind": 0
+        },
+        {
+          "key": "distort_at",
+          "name": "Distorted Fate",
+          "diff": "AT",
+          "blind": 0
+        },
+        {
+          "key": "xd8e302e4_at",
+          "name": "玩具狂奏曲終焉",
+          "diff": "AT",
+          "blind": 0
+        }
+      ],
+      "note": "用户指定的 5 首里**三首零盲区**的组合（2026-10-28：erabyeconnec10n_at 峰值并发 9，单曲模式已打出 φ ⇒ 10 指不再是障碍）。三首都没有盲区音符 ⇒ 课题模式没有结构性必丢，理论上限就是 300w。"
+    }
+  ]
+}
