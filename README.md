@@ -70,14 +70,32 @@
 | JDK | 17 | <https://adoptium.net/temurin/releases/?version=17>（下 `.msi`，装完 `javac -version` 打印 17 即可） |
 | Android SDK | build-tools 34.0.0 + platforms;android-34 | 见下面四步 |
 
+> JDK 为什么必须是 17、不能上 21：实测 JDK 21 能把源码编完，但 build-tools 34.0.0 自带的 d8
+> 不认它产出的 class 文件，在 `[4/8] d8` 一步直接报 `Compilation failed with an internal error`。
+> 要用 21 就得连 build-tools 一起升级，不值得 —— 装 17 就对了。
+
 Android SDK 没有安装程序，解压到哪、哪就是它的位置 —— 盘符和目录名都可以自己挑，只要让 `ANDROID_SDK`
 指到它就行。只构建不写 Android 代码时不必装 Android Studio：
 
-1. 打开 <https://developer.android.com/studio>，在「仅限命令行工具」表里下载 Windows 那一行
-   （`commandlinetools-win-*_latest.zip`，约 156 MB）；
-2. 解压成 `<SDK 目录>/cmdline-tools/latest/`（本文后面拿 `D:/android-sdk` 当例子）。少这一层
-   `latest`，下一步会报 `Could not determine SDK root`；
-3. 装三个包 + 同意许可。在哪跑都行（命令里会 cd 进 SDK 目录），只需要改前两行的两个路径，其余照抄：
+1. 打开 <https://developer.android.com/studio>（国内打不开就用镜像
+   <https://developer.android.google.cn/studio>，同一个页面），拉到页面**最底部**的
+   「仅限命令行工具」下载表，下载 Windows 那一行（`commandlinetools-win-*_latest.zip`，约 156 MB）；
+2. 解压出来的是一个叫 `cmdline-tools` 的文件夹（里面直接是 `bin/`、`lib/`）。自己建一个 SDK 根目录，
+   把它挪进去并改名为 `latest`，最终布局是（本文后面拿 `D:/android-sdk` 当例子）：
+
+   ```
+   D:/android-sdk/            ← SDK 根目录，你自己建的
+   └─ cmdline-tools/
+      └─ latest/              ← 解压出来的 cmdline-tools 挪到这里并改名
+         ├─ bin/
+         └─ lib/
+   ```
+
+   直接把解压出来的文件夹当 SDK 根目录用是不行的 —— 少这一层 `latest`，下一步会报
+   `Could not determine SDK root`；
+3. 装三个包 + 同意许可。三个包都**不在这个 zip 里** —— `sdkmanager` 会连网把它们下载到 SDK 根目录
+   （自动建出 `platforms/`、`build-tools/`、`platform-tools/` 三个子目录），你只需要跑下面两条命令。
+   在哪跑都行（命令里会 cd 进 SDK 目录），只需要改前两行的两个路径，其余照抄：
 
    ```bash
    SDK="D:/android-sdk"                  # 换成你解压 SDK 的目录
@@ -124,27 +142,7 @@ export ANDROID_SDK="C:/Users/你的用户名/AppData/Local/Android/Sdk"   # 默�
 export ADB="C:/platform-tools/adb.exe"                              # 默认 D:/platform-tools/adb.exe
 ```
 
-#### 2. 起 Shizuku
-
-Shizuku 需要一个有 shell 权限的入口拉起服务，两种都行：
-
-- **手机内完成（推荐）**：开发者选项里开「USB 调试」和「无线调试」→ Shizuku 里点「通过无线调试启动」→
-  配对（输入 6 位码）→ 启动。
-- **用电脑的 adb**：Shizuku 13.x 已不再提供 `start.sh`，能跑的是它自带的 starter
-  （APK 里的 `lib/arm64/libshizuku.so`，可直接执行）。路径带安装哈希，所以要先问设备：
-
-  ```bash
-  bash tools/start_shizuku.sh          # 自动取路径、启动、验证
-  ```
-
-  它等价于手动三步：`adb shell pm path moe.shizuku.privileged.api`（取路径）→
-  把结尾 `base.apk` 换成 `lib/arm64/libshizuku.so` 并执行 → `adb shell ps -A | grep shizuku_server` 验证。
-  > 这三条用的是裸 `adb`，它得先在 PATH 里；没在就先 `export PATH="$PATH:/d/platform-tools"`，
-  > 或全部换成全路径 `D:/platform-tools/adb.exe`。
-
-判据：`adb shell ps -A | grep shizuku_server` 能看到进程。手机重启或被系统清理后要重来一次。
-
-#### 3. 生成曲库素材
+#### 2. 生成曲库素材
 
 App 需要两样东西：谱面（音符时刻与坐标）和母带音频（算静音长度与音频指纹），
 都从你自己的游戏安装包里取，仓库里不带：
@@ -182,7 +180,7 @@ PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py      # 自动收录�
 
 > 这些素材是游戏资产，仅供本机自用；不要随仓库或安装包公开分发。
 
-#### 4. 拉依赖 + 构建 + 安装
+#### 3. 拉依赖 + 构建 + 安装
 
 Shizuku 的 4 个 aar 属于第三方二进制，**不随仓库分发**，第一次构建前先拉一下（约 60 KB）：
 
@@ -210,6 +208,28 @@ bash android/play/build.sh install          # 构建并直接 adb install -r
 > 装机后核对版本请看 `dumpsys package io.pgauto.play` 的 `lastUpdateTime`，不要看 `versionCode`。
 
 ### 运行
+
+#### 4. 起 Shizuku
+
+Shizuku 只在**打歌时**用（注入触摸走它）；前面生成素材、构建、装机都用不到，
+第一次打歌前起一次就行。它需要一个有 shell 权限的入口拉起服务，两种都行：
+
+- **手机内完成（推荐）**：开发者选项里开「USB 调试」和「无线调试」→ Shizuku 里点「通过无线调试启动」→
+  配对（输入 6 位码）→ 启动。
+- **用电脑的 adb**：Shizuku 13.x 已不再提供 `start.sh`，能跑的是它自带的 starter
+  （APK 里的 `lib/arm64/libshizuku.so`，可直接执行）。路径带安装哈希，所以要先问设备：
+
+  ```bash
+  bash tools/start_shizuku.sh          # 自动取路径、启动、验证
+  ```
+
+  它等价于手动三步：`adb shell pm path moe.shizuku.privileged.api`（取路径）→
+  把结尾 `base.apk` 换成 `lib/arm64/libshizuku.so` 并执行 → `adb shell ps -A | grep shizuku_server` 验证。
+  > 这三条用的是裸 `adb`，它得先在 PATH 里；没在就先 `export PATH="$PATH:/d/platform-tools"`，
+  > 或全部换成全路径 `D:/platform-tools/adb.exe`。
+
+判据：`adb shell ps -A | grep shizuku_server` 能看到进程。手机重启或被系统清理后要重来一次；
+重装本 App 后还要回 App 里重新点一次「申请 Shizuku 权限」。
 
 #### 5. 打一局
 
@@ -304,7 +324,7 @@ App 里有一页「课题模式」：一次录屏授权加一个会话连打 3 �
 
 日志写着「Shizuku 门禁未过」⇒ 还没授权，或重装后授权丢了。
 
-日志写着「这首的谱面数据是空的」⇒ 素材没生成或没打包，回第 3 步。
+日志写着「这首的谱面数据是空的」⇒ 素材没生成或没打包，回第 2 步。
 
 `K` 一直「未标定」⇒ 个别曲目的 30 s 音频指纹太平，互相关无法唯一定位。这类曲目照常能打，
 只是本轮 `L_dev` 退到 `c`。
@@ -323,7 +343,7 @@ bash android/play/build.sh install
 ```
 
 刚 clone 下来跑 `pytest` 会看到一百多条 skip，那不是失败：曲库素材、`out/` 里的谱面中间件、
-`tmp/` 下的内部审计脚本都按设计不进仓库，缺它们的测试自动跳过。跑完第 3 步（生成曲库素材）
+`tmp/` 下的内部审计脚本都按设计不进仓库，缺它们的测试自动跳过。跑完第 2 步（生成曲库素材）
 和 `bash android/play/build.sh` 之后，能跑的自己就回来了。
 
 目录结构：
