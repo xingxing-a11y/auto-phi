@@ -99,7 +99,6 @@ git ls-files -z | while IFS= read -r -d '' f; do
     # ① 游戏派生数据：assets 整目录（manifest.json + payload/*.json）
     #    例外：courses.json 是作者手写的课题预设（曲 key + trim，2026-11-03），
     #    不是游戏派生数据 ⇒ 始终导出，否则公开构建的课题模式永远是「没有课题预设」
-    android/play/app/src/main/assets/courses.json) keep=1 ;;
     android/*/app/src/main/assets/*) keep=0 ;;
     # ② 本地生成的曲库素材（清单/母带/谱面）
     samples/*) keep=0 ;;
