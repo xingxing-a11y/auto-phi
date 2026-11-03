@@ -250,10 +250,6 @@ public final class TouchSniff {
         }
     }
 
-    public boolean isRunning() {
-        return running;
-    }
-
     private static InputStream open(IRemoteProcess p) throws Exception {
         ParcelFileDescriptor pfd = p.getInputStream();
         return new ParcelFileDescriptor.AutoCloseInputStream(pfd);

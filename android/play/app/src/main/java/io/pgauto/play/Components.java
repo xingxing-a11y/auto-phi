@@ -100,14 +100,6 @@ public final class Components {
         return s;
     }
 
-    /** 只有「接线项」失败才算失败；环境项不参与这个判断。 */
-    public static boolean wiringOk(List<Item> items) {
-        for (Item i : items) {
-            if (i.required && !i.ok) return false;
-        }
-        return true;
-    }
-
     // ─────────────────────────── 各项 ───────────────────────────
 
     private static Item buildInfo() {

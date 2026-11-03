@@ -1,7 +1,5 @@
 package io.pgauto.play;
 
-import java.util.Arrays;
-
 /**
  * 从一次「学习落点」窗口里挑出**第一次按下**的那个点。
  *
@@ -82,18 +80,5 @@ public final class FirstDown {
             b.append(act[i]).append(':').append(rawX[i]).append('x').append(rawY[i]);
         }
         return b.append(']').toString();
-    }
-
-    /** 仅供自测：判断某下标是否是第一个按下点（避免测试自己再实现一遍逻辑）。 */
-    static boolean isFirstDownIndex(int[] act, int idx) {
-        if (act == null || idx < 0 || idx >= act.length) return false;
-        for (int i = 0; i < idx; i++) {
-            if (act[i] == ACT_DOWN) return false;
-        }
-        return act[idx] == ACT_DOWN;
-    }
-
-    static int[] copy(int[] a) {
-        return a == null ? null : Arrays.copyOf(a, a.length);
     }
 }

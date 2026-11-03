@@ -198,8 +198,6 @@ public final class RecvTrace {
     public int downCount() { return nDown; }
     public int upCount() { return nUp; }
     public int moveCount() { return nMove; }
-    public int pointerDownCount() { return nPdown; }
-    public int pointerUpCount() { return nPup; }
     public int cancelCount() { return nCancel; }
     public int orphanUp() { return orphanUp; }
     public int orphanMove() { return orphanMove; }

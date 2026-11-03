@@ -75,8 +75,6 @@ public class PointerSinkView extends View {
 
     public int getMaxPointers() { return maxPointers; }
 
-    public int getEventCount() { return eventCount; }
-
     private static String actionName(int a) {
         switch (a) {
             case MotionEvent.ACTION_DOWN: return "DOWN";

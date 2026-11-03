@@ -507,9 +507,6 @@ public final class DevRun {
         if (t != null) LockSupport.unpark(t);
     }
 
-    /** 零点被改过几次、最后一次的 delta（ms，正 = 实测比预测晚）。 */
-    public int rezeroCount() { return nRezero; }
-
     public double rezeroDeltaMs() { return rezeroDeltaMs; }
 
     /** 用预测零点派发出的条数（0 = 这轮没预派）。 */

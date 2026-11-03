@@ -153,3 +153,7 @@ tmp/dev*.xml
 tmp/*.java
 
 dist/
+
+# out/ 是数据垃圾场：新子目录（如从设备拉回的日志）不再逐个补规则；
+# 已跟踪的历史文件（out/course_*.csv 等）不受影响，继续跟踪。
+out/*
