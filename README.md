@@ -268,6 +268,9 @@ App 顶部有 `▶ 落点 x,y` 入口：点「学习落点」→ 切回游戏停
 
 ## 已知限制（不是 bug）
 
+0. **本项目是非官方第三方工具**，与 Pigeon Games（《Phigros》开发商）无任何关联；自动化打分可能
+   违反游戏用户协议，由此产生的账号后果由使用者自行承担。
+
 1. φ 是概率事件：捕获抖动会吃掉一部分判定余量，高密度长曲更难一发命中；
 2. 有盲区的曲目第 1 轮不可能 φ：只能先打一轮量 `lead`，第 2 轮起预派；
 3. 10 指压力：并发要 9~10 根手指的谱面，长按可能被抢。全库 `pointer_peak ≥ 9` 的只有 4 条，
@@ -332,7 +335,7 @@ App 里有一页「课题模式」：一次录屏授权加一个会话连打 3 �
 ## 开发与验证
 
 ```bash
-# PC 侧逻辑回归：638 条（谱面解析 / 排程 / 坐标 / 时基）
+# PC 侧逻辑回归：677 条（另有 4 条按设计跳过；谱面解析 / 排程 / 坐标 / 时基）
 PYTHONUTF8=1 .venv/Scripts/python.exe -m pytest -q --basetemp=tmp/_ptX -p no:cacheprovider
 
 # 端内纯逻辑自检：301 条断言，不装机
@@ -355,7 +358,7 @@ bash android/play/build.sh install
 | `android/probe/`、`android/pulse/` | 音频 / 起音探针与扫频播放器（标定链路用） |
 | `pgauto/` | PC 侧 Python 库：谱面解析、调度、坐标变换、时基 |
 | `tools/` | 解包（`extract_chart` / `extract_music`）、打包（`pack_assets`）、校验与审计 |
-| `tests/` | 638 条 pytest（PC 侧逻辑 + APK 契约测试） |
+| `tests/` | 677 条 pytest（PC 侧逻辑 + APK 契约测试；另 4 条按设计跳过） |
 | `docs/` | 换机清单、开始按钮标定 |
 
 > `tools/` 里除了主链路的三个脚本，还有一批实验与审计脚本（`audit_*`、`sweep_*`、
@@ -372,7 +375,7 @@ bash android/play/build.sh install
 提供的 shell 权限通道；注入本身是 AOSP 的 `IInputManager.injectInputEvent`。
 以库的形式链接（`android/vendor/` 下 4 个 AAR，版本 13.1.5，**未修改源码**），
 所以 APK 内含 Apache-2.0 组件：**分发 APK 时需随附 Apache-2.0 许可文本与本声明**
-（全文 <https://www.apache.org/licenses/LICENSE-2.0>）。
+（全文已放在仓库根的 [`THIRD-PARTY-NOTICES.md`](./THIRD-PARTY-NOTICES.md)，随 APK 分发该文件即满足要求）。
 
 ### 建模思路：phisap（WTFPL v2）
 
