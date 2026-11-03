@@ -165,19 +165,6 @@ PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py
 # 只要几首：--song "曲名子串"；想用本地 APK 加 --apk path/to/Phigros.apk
 ```
 
-这四条命令的产物都留在你本机（`samples/`、`out/` 下），`.gitignore` 已把它们排除，
-所以 `git status` 里看不到它们 —— 磁盘上有、状态里没有，是正常的，不用提交。
-最后一步的 `android/play/app/src/main/assets/` 是个例外：它是打包的落地目录，会显示成未跟踪，
-同样不用提交（它就是你要的东西，出包时被塞进 APK）。
-
-`make_payloads.py` 是「谱面 → 音符 → 触摸事件」两步的批处理，产物是 `out/touches_<key>.json`
-（`pack_assets.py` 只认这个）。它按 `tools/song_keys.json` 给每首起名字 —— 那份表把
-`曲目录 + 难度` 映射到 key（`bounded_in`、`70mf_ez` 这些），所以文件名和出货版本一致。
-表里没有的谱（游戏刚出的新歌）会退到 `<短名>_<难度>` 命名并打警告，重跑不会重复下载。
-
-`pack_assets.py` 会从母带里算两样东西写进 `manifest.json`：`sil_ref`（曲首静音长度，零点公式要用）
-和 `env_b64`（前 30 s 的 10 ms RMS 包络，端内用它互相关标定 `K`）。wav 本身不进 APK。
-
 游戏更新后两个解包工具都是增量的，再跑 `--all` 只补缺的；大版本更新要加 `--no-resume`（谱面）
 和 `--force`（音频）强制重取，否则会沿用旧文件，症状是「整首都偏 / 全 Good」。
 
@@ -189,21 +176,6 @@ PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py
 .venv/Scripts/python.exe tools/make_payloads.py                 # 只补还没生成载荷的曲
 PYTHONUTF8=1 .venv/Scripts/python.exe tools/pack_assets.py      # 自动收录（新曲追加在末尾）
 ```
-
-新曲一开始不在 `tools/song_keys.json` 里，`make_payloads` 会用兜底命名（`<短名>_<难度>`）并打印
-`⚠ 映射表里没有 N 张`。想让它和官方口径一致，把表补上再跑一次即可（表就是 `曲目录|难度 → key`）。
-
-`pack_assets.py` 看的是 `out/touches_*.json` 里有什么（已知曲按固定顺序，新曲按 key 排在末尾），
-所以新歌不用登记。三件事要留意：
-
-- `tap_lead_ms` 和难度等级只有 `bounded_in` 登记了（出货 manifest 里 1056 首中仅此一首有值），
-  其余全是空的 —— 包括所有新曲。前者表示还没真机测过 tap 的 lead，`zero=tap` 模式会拒绝它、
-  只能用 `onset`；后者端内显示 `Lv --`。两项都不影响打歌。
-- 新曲如果有盲区（`blind_lost > 0`），第 1 轮会丢首音，第 2 轮起才可能全 Perfect。
-- 版本要对齐：两个解包工具拿的是 TapTap 上架的最新版，不一定等于你手机里装的那份。
-  手机还没更新时，新曲卡片会出现但打不了；新版若改过老曲谱面，按新谱面注入会整体错位。
-  要完全对齐就把 `--apk` 指向手机上的安装包：
-  `tools/extract_chart.py --all --apk D:/Phigros.apk`（`tools/extract_music.py` 同样支持）。
 
 打包时若某首失败，会打一行 `✗ <key> …: 缺母带 …` 并以非 0 退出码结束 —— 先补母带再打包，
 别拿缺了几首的 manifest 去出包。
